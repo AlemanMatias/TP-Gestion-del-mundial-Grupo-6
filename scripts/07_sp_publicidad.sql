@@ -1,17 +1,30 @@
-/*
-  Entrega 5 - Bases de Datos Aplicada - Comisión 02-5600
-  Fecha: Octubre 2026
-  Integrantes: Aleman Flores Matias, Gamarra Bravo Sidney, Perreira Carlos, Villa Brenda
-  Descripción:
-     Implementación de Stored Procedures (ABM) para el esquema 'publicidad'.
-     Generación de espacios publicitarios y asignación de publicidad.
+/* 
+   UNIVERSIDAD NACIONAL DE LA MATANZA (UNLaM)
+   Departamento de Ingeniería e Investigaciones Tecnológicas
+   Asignatura: Bases de Datos Aplicada (3641)
+   Comisión: 02-5600 (Viernes Tarde)
+   
+   TRABAJO PRÁCTICO - SISTEMA DE REGISTRO Y GESTIÓN DEL MUNDIAL DE FÚTBOL 2026
+   
+   Integrantes del Grupo:
+     - Aleman Flores, Matias Osvaldo 
+     - Gamarra Bravo, Sidney Maribel
+     - Pereira, Carlos Manuel
+     - Villa, Brenda
+     
+   Script: 07_sp_publicidad.sql
+   Descripción: Módulo 4 - Gestión de Publicidad.
+                Implementación de Stored Procedures con ciclo ABM completo para el esquema 'publicidad':
+                Anunciantes, Campañas, Piezas de Contenido, Países de Interés (Pieza_Pais_Interes),
+                Espacios Publicitarios (4 paneles simultáneos por partido) y Algoritmo de Asignación
+                y Facturación de Exhibiciones Publicitarias (país participante, PBI per cápita, prime time).
 */
 
 USE Mundial2026;
 GO
 
 -- =========================================================================================
--- SP: Generar espacios publicitarios para un partido
+-- 1. ABM DE ESPACIOS PUBLICITARIOS POR PARTIDO (publicidad.Espacio_publicitario)
 -- =========================================================================================
 CREATE OR ALTER PROCEDURE publicidad.sp_GenerarEspaciosPartido
     @id_partido INT
@@ -25,41 +38,86 @@ BEGIN
     IF EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
         THROW 50002, 'Los espacios publicitarios ya fueron generados previamente para este partido.', 1;
 
-    INSERT INTO publicidad.Espacio_publicitario (nombre, numero_slot, ID_Partido)
-    VALUES 
-        ('Panel Perimetral Norte', 1, @id_partido),
-        ('Panel Perimetral Sur', 2, @id_partido),
-        ('Panel Perimetral Este', 3, @id_partido),
-        ('Panel Perimetral Oeste', 4, @id_partido);
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        INSERT INTO publicidad.Espacio_publicitario (nombre, numero_slot, ID_Partido)
+        VALUES 
+            ('Panel Perimetral Norte', 1, @id_partido),
+            ('Panel Perimetral Sur', 2, @id_partido),
+            ('Panel Perimetral Este', 3, @id_partido),
+            ('Panel Perimetral Oeste', 4, @id_partido);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 END;
 GO
 
--- =========================================================================================
--- SP: Registrar o modificar Anunciante
--- =========================================================================================
-CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarAnunciante
-    @id INT = NULL,
-    @nombre VARCHAR(100)
+CREATE OR ALTER PROCEDURE publicidad.sp_EliminarEspaciosPartido
+    @id_partido INT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF LTRIM(RTRIM(@nombre)) = ''
+    IF NOT EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
+        THROW 50015, 'No existen espacios publicitarios generados para el partido indicado.', 1;
+
+    IF EXISTS (
+        SELECT 1 FROM publicidad.Exhibicion ex
+        JOIN publicidad.Espacio_publicitario ep ON ep.ID = ex.ID_espacio
+        WHERE ep.ID_Partido = @id_partido
+    )
+        THROW 50016, 'No se pueden eliminar los espacios porque ya poseen exhibiciones facturadas.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- =========================================================================================
+-- 2. ABM DE ANUNCIANTES (publicidad.Anunciante)
+-- =========================================================================================
+CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarAnunciante
+    @id INT = NULL,
+    @nombre VARCHAR(100),
+    @id_generado INT = NULL OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @nombre IS NULL OR LTRIM(RTRIM(@nombre)) = ''
         THROW 50003, 'El nombre del anunciante no puede estar vacío.', 1;
 
     IF @id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id)
         THROW 50004, 'El anunciante que intenta modificar no existe.', 1;
 
-    IF EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE nombre = @nombre AND (@id IS NULL OR ID <> @id))
+    IF EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE nombre = LTRIM(RTRIM(@nombre)) AND (@id IS NULL OR ID <> @id))
         THROW 50005, 'Ya existe un anunciante registrado con ese nombre.', 1;
 
+    BEGIN TRANSACTION;
     BEGIN TRY
-        BEGIN TRANSACTION;
-        
         IF @id IS NULL
+        BEGIN
             INSERT INTO publicidad.Anunciante (nombre) VALUES (LTRIM(RTRIM(@nombre)));
+            SET @id_generado = SCOPE_IDENTITY();
+        END
         ELSE
+        BEGIN
             UPDATE publicidad.Anunciante SET nombre = LTRIM(RTRIM(@nombre)) WHERE ID = @id;
+            SET @id_generado = @id;
+        END
             
         COMMIT TRANSACTION;
     END TRY
@@ -67,22 +125,51 @@ BEGIN
         IF @@TRANCOUNT > 0 
             ROLLBACK TRANSACTION;
         THROW;
-    END CATCH
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE publicidad.sp_EliminarAnunciante
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id)
+        THROW 50017, 'El anunciante que intenta eliminar no existe.', 1;
+
+    IF EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID_Anunciante = @id)
+        THROW 50018, 'No se puede eliminar el anunciante porque posee campañas publicitarias asociadas.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM publicidad.Anunciante WHERE ID = @id;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 END;
 GO
 
 -- =========================================================================================
--- SP: Registrar o modificar Campaña
+-- 3. ABM DE CAMPAÑAS PUBLICITARIAS (publicidad.Campania)
 -- =========================================================================================
 CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarCampania
     @id INT = NULL,
     @nombre VARCHAR(100),
     @fecha_inicio DATE,
     @fecha_fin DATE,
-    @id_anunciante INT
+    @id_anunciante INT,
+    @id_generado INT = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    IF @nombre IS NULL OR LTRIM(RTRIM(@nombre)) = ''
+        THROW 50019, 'El nombre de la campaña no puede estar vacío.', 1;
 
     IF @fecha_inicio > @fecha_fin
         THROW 50006, 'La fecha de inicio de la campaña no puede ser posterior a la fecha de fin.', 1;
@@ -93,19 +180,24 @@ BEGIN
     IF @id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id)
         THROW 50008, 'La campaña que intenta modificar no existe.', 1;
 
+    BEGIN TRANSACTION;
     BEGIN TRY
-        BEGIN TRANSACTION;
-        
         IF @id IS NULL
+        BEGIN
             INSERT INTO publicidad.Campania (nombre, fecha_inicio, fecha_fin, ID_Anunciante)
             VALUES (LTRIM(RTRIM(@nombre)), @fecha_inicio, @fecha_fin, @id_anunciante);
+            SET @id_generado = SCOPE_IDENTITY();
+        END
         ELSE
+        BEGIN
             UPDATE publicidad.Campania 
             SET nombre = LTRIM(RTRIM(@nombre)), 
                 fecha_inicio = @fecha_inicio, 
                 fecha_fin = @fecha_fin, 
                 ID_Anunciante = @id_anunciante
             WHERE ID = @id;
+            SET @id_generado = @id;
+        END
             
         COMMIT TRANSACTION;
     END TRY
@@ -113,22 +205,51 @@ BEGIN
         IF @@TRANCOUNT > 0 
             ROLLBACK TRANSACTION;
         THROW;
-    END CATCH
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE publicidad.sp_EliminarCampania
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id)
+        THROW 50020, 'La campaña especificada no existe.', 1;
+
+    IF EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID_Campania = @id)
+        THROW 50021, 'No se puede eliminar la campaña porque posee piezas de contenido asociadas.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM publicidad.Campania WHERE ID = @id;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 END;
 GO
 
 -- =========================================================================================
--- SP: Registrar o modificar Pieza de Contenido
+-- 4. ABM DE PIEZAS DE CONTENIDO (publicidad.Pieza_Contenido)
 -- =========================================================================================
 CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarPiezaContenido
     @id INT = NULL,
     @nombre VARCHAR(100),
     @idioma VARCHAR(30),
     @costo DECIMAL(12,2),
-    @id_campania INT
+    @id_campania INT,
+    @id_generado INT = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    IF @nombre IS NULL OR LTRIM(RTRIM(@nombre)) = '' OR @idioma IS NULL OR LTRIM(RTRIM(@idioma)) = ''
+        THROW 50022, 'El nombre y el idioma de la pieza publicitaria son obligatorios.', 1;
 
     IF @costo < 0
         THROW 50009, 'El costo de la pieza publicitaria no puede ser negativo.', 1;
@@ -139,19 +260,24 @@ BEGIN
     IF @id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id)
         THROW 50011, 'La pieza de contenido que intenta modificar no existe.', 1;
 
+    BEGIN TRANSACTION;
     BEGIN TRY
-        BEGIN TRANSACTION;
-        
         IF @id IS NULL
+        BEGIN
             INSERT INTO publicidad.Pieza_Contenido (nombre, idioma, costo, ID_Campania)
             VALUES (LTRIM(RTRIM(@nombre)), LTRIM(RTRIM(@idioma)), @costo, @id_campania);
+            SET @id_generado = SCOPE_IDENTITY();
+        END
         ELSE
+        BEGIN
             UPDATE publicidad.Pieza_Contenido 
             SET nombre = LTRIM(RTRIM(@nombre)), 
                 idioma = LTRIM(RTRIM(@idioma)), 
                 costo = @costo, 
                 ID_Campania = @id_campania
             WHERE ID = @id;
+            SET @id_generado = @id;
+        END
             
         COMMIT TRANSACTION;
     END TRY
@@ -159,12 +285,91 @@ BEGIN
         IF @@TRANCOUNT > 0 
             ROLLBACK TRANSACTION;
         THROW;
-    END CATCH
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE publicidad.sp_EliminarPiezaContenido
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id)
+        THROW 50023, 'La pieza de contenido especificada no existe.', 1;
+
+    IF EXISTS (SELECT 1 FROM publicidad.Exhibicion WHERE ID_Pieza = @id)
+        THROW 50024, 'No se puede eliminar la pieza de contenido porque registra exhibiciones facturadas en partidos.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id;
+        DELETE FROM publicidad.Pieza_Contenido WHERE ID = @id;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 END;
 GO
 
 -- =========================================================================================
--- SP: Asignar publicidad a un partido (Algoritmo de Prioridad)
+-- 5. ABM DE PAÍSES DE INTERÉS DE UNA PIEZA (publicidad.Pieza_Pais_Interes)
+-- =========================================================================================
+CREATE OR ALTER PROCEDURE publicidad.sp_GestionarPaisInteresPieza
+    @id_pieza INT,
+    @id_pais INT,
+    @accion VARCHAR(10) = 'INSERTAR' -- 'INSERTAR' o 'ELIMINAR'
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id_pieza)
+        THROW 50025, 'La pieza de contenido indicada no existe.', 1;
+
+    IF NOT EXISTS (SELECT 1 FROM administracion.Pais WHERE ID = @id_pais)
+        THROW 50026, 'El país de interés indicado no existe.', 1;
+
+    IF @accion NOT IN ('INSERTAR', 'ELIMINAR')
+        THROW 50027, 'La acción debe ser INSERTAR o ELIMINAR.', 1;
+
+    IF @accion = 'INSERTAR' AND EXISTS (
+        SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais
+    )
+        THROW 50028, 'El país indicado ya se encuentra asociado como mercado de interés para esta pieza.', 1;
+
+    IF @accion = 'ELIMINAR' AND NOT EXISTS (
+        SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais
+    )
+        THROW 50028, 'El país indicado no se encuentra asociado a esta pieza.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        IF @accion = 'INSERTAR'
+        BEGIN
+            INSERT INTO publicidad.Pieza_Pais_Interes (ID_Pieza, ID_Pais)
+            VALUES (@id_pieza, @id_pais);
+        END
+        ELSE IF @accion = 'ELIMINAR'
+        BEGIN
+            DELETE FROM publicidad.Pieza_Pais_Interes
+            WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais;
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- =========================================================================================
+-- 6. ALGORITMO DE ASIGNACIÓN Y BAJA DE EXHIBICIÓN PUBLICITARIA (publicidad.Exhibicion)
 -- =========================================================================================
 CREATE OR ALTER PROCEDURE publicidad.sp_AsignarPublicidadPartido
     @id_partido INT
@@ -185,10 +390,9 @@ BEGIN
     )
         THROW 50014, 'La publicidad de este partido ya fue asignada previamente.', 1;
 
+    BEGIN TRANSACTION;
     BEGIN TRY
-        BEGIN TRANSACTION;
-
-        -- Tabla temporal para calcular puntajes
+        -- Tabla temporal para calcular puntajes por mercado de interés
         DECLARE @Puntajes TABLE (
             ID_Pieza INT,
             costo DECIMAL(12,2),
@@ -214,7 +418,7 @@ BEGIN
         WHERE c.fecha_inicio <= CAST(part.fecha_hora_local AS DATE) 
           AND c.fecha_fin >= CAST(part.fecha_hora_local AS DATE);
 
-        -- Tabla temporal para elegir las 4 mejores
+        -- Tabla temporal para elegir las 4 mejores piezas candidatas
         DECLARE @Top4 TABLE (
             fila INT IDENTITY(1,1),
             ID_Pieza INT,
@@ -260,6 +464,36 @@ BEGIN
         IF @@TRANCOUNT > 0 
             ROLLBACK TRANSACTION;
         THROW;
-    END CATCH
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE publicidad.sp_EliminarExhibicionPartido
+    @id_partido INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM publicidad.Exhibicion ex
+        JOIN publicidad.Espacio_publicitario ep ON ep.ID = ex.ID_espacio
+        WHERE ep.ID_Partido = @id_partido
+    )
+        THROW 50029, 'No existen exhibiciones publicitarias asignadas para este partido.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE ex
+        FROM publicidad.Exhibicion ex
+        JOIN publicidad.Espacio_publicitario ep ON ep.ID = ex.ID_espacio
+        WHERE ep.ID_Partido = @id_partido;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 END;
 GO
