@@ -1,7 +1,9 @@
 /*
   Entrega 5 - Bases de Datos Aplicada - Comisión 02-5600
   Fecha: Octubre 2026
-  Integrantes: Aleman Flores Matias, Gamarra Bravo Sidney, Perreira Carlos, Villa Brenda
+  Integrantes: Aleman Flores Matias, Gamarra Bravo Sidney, Pereira Carlos, Villa Brenda
+
+  Script: 04_administracion.sql
   Descripción:
      Implementación de Stored Procedures (ABM y lógica de negocio) para el esquema 'administracion'.
      Valida reglas oficiales FIFA Copa Mundial 2026: cupo de 48 selecciones (4 por grupo), planteles 
@@ -779,6 +781,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM administracion.Seleccion WHERE ID = @id_seleccion)
         THROW 50071, 'La selección nacional especificada no existe.', 1;
 
+    -- Regla FIFA 1: Cupo máximo oficial de 26 jugadores activos por delegación
+    IF (SELECT COUNT(*) FROM administracion.Convocatoria WHERE ID_Seleccion = @id_seleccion AND estado = 1) >= 26
+        THROW 50075, 'La selección ya alcanzó el cupo máximo reglamentario de 26 jugadores activos.', 1;
+
+
+
     -- Validar rango reglamentario del dorsal (1 a 26)
     IF @dorsal IS NULL OR @dorsal NOT BETWEEN 1 AND 26
         THROW 50072, 'El dorsal debe ser un número entero comprendido entre 1 y 26.', 1;
@@ -787,7 +795,7 @@ BEGIN
     IF @dorsal = 1 AND (SELECT UPPER(posicion_habitual) FROM administracion.Jugador WHERE ID = @id_jugador) <> 'ARQUERO'
         THROW 50078, 'El dorsal número 1 está reservado reglamentariamente de forma exclusiva para un arquero.', 1;
 
-    -- Regla FIFA 1: Un jugador solo puede representar a una selección (Principio de no duplicidad)
+    -- Regla FIFA 1: Un jugador solo puede representar a una selección
     IF EXISTS (SELECT 1 FROM administracion.Convocatoria WHERE ID_Jugador = @id_jugador)
         THROW 50073, 'El jugador ya posee un registro de convocatoria (FIFA prohíbe doble selección).', 1;
 
@@ -798,9 +806,9 @@ BEGIN
                  AND estado = 1)
         THROW 50074, 'El dorsal ya está ocupado por otro jugador activo en la misma selección.', 1;
 
-    -- Regla FIFA 3: Cupo máximo oficial de 26 jugadores activos por delegación
-    IF (SELECT COUNT(*) FROM administracion.Convocatoria WHERE ID_Seleccion = @id_seleccion AND estado = 1) >= 26
-        THROW 50075, 'La selección ya alcanzó el cupo máximo reglamentario de 26 jugadores activos.', 1;
+
+
+
 
     -- Inserción del convocado activo (estado = 1)
     INSERT INTO administracion.Convocatoria (ID_Jugador, ID_Seleccion, estado, dorsal, fecha, motivo)
@@ -889,7 +897,7 @@ BEGIN
                  AND ID_Jugador <> @id_jugador_lesionado)
         THROW 50074, 'El dorsal solicitado ya está ocupado por otro jugador activo de la selección.', 1;
 
-    -- 2. BLOQUE TRANSACCIONAL ATÓMICO (ACID)
+    -- 2. BLOQUE TRANSACCIONAL ATÓMICO
     BEGIN TRY
         BEGIN TRANSACTION;
 

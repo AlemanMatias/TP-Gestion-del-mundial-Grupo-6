@@ -13,16 +13,18 @@
      - Villa, Brenda
      
    Script: RECREAR_BASE.sql
-   Descripción: Script maestro para recrear por completo la base de datos Mundial2026
-                desde cero en el orden técnico estricto de dependencias:
+   Descripción: Script para recrear por completo la base de datos Mundial2026
+                desde cero en el orden estricto de dependencias:
                 Base de datos, Esquemas, Tablas y Stored Procedures (Módulos 1 a 4).
                 
    MODO DE USO EN SSMS:
-   1. Activar 'Modo SQLCMD': En el menú superior de SSMS ir a:
+   1. Configuración: Indicar en el paso 0 la ruta local de la carpeta 'scripts'
+   2. Activar 'Modo SQLCMD': En el menú superior de SSMS ir a:
       Consulta (Query) -> Modo SQLCMD (SQLCMD Mode).
-   2. Presionar F5 (Ejecutar).
+   3. Presionar F5 (Ejecutar).
 */
 
+-- 0. Poner entre comillas la ruta donde se aloja la carpeta de scripts del proyecto :setvar ScriptsDir "ruta scripts"
 :setvar ScriptsDir "g:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\scripts"
 
 PRINT '======================================================================';
