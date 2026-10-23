@@ -13,7 +13,7 @@
      - Villa, Brenda
      
    Script: test_04_administracion.sql
-   Descripción: Lote de pruebas unitarias exhaustivas para los Stored Procedures de 04_sp_administracion.sql.
+   Descripción: Lote de pruebas unitarias para los Stored Procedures de 04_sp_administracion.sql.
                 Valida los ciclos completos de ABM de las 8 tablas maestras y las reglas de negocio FIFA.
                 Ejecuta de forma totalmente aislada (ROLLBACK) y consolida un reporte visual en la grilla de Resultados.
 */
