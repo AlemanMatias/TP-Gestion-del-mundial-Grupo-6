@@ -639,11 +639,3 @@ SELECT
     Detalle
 FROM @Reporte
 ORDER BY ID ASC;
-
--- Resumen estadístico
-SELECT 
-    Resultado, 
-    COUNT(*) AS Total
-FROM @Reporte
-GROUP BY Resultado;
-GO

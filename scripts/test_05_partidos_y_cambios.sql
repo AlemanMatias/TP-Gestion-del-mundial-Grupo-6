@@ -27,7 +27,7 @@ GO
 
 SET NOCOUNT ON;
 
--- Tabla en memoria para consolidar el reporte visual final
+-- Tabla en memoria para consolidar el reporte visual final (inmune a ROLLBACK)
 DECLARE @Reporte TABLE (
     ID INT IDENTITY(1,1),
     Procedimiento VARCHAR(50),

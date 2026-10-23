@@ -14,7 +14,7 @@
      
    Script: 07_sp_publicidad.sql
    Descripción: Módulo 4 - Gestión de Publicidad.
-                Implementación de Stored Procedures con ciclo ABM completo para el esquema 'publicidad':
+                Implementación de SP con ciclo ABM completo para el esquema 'publicidad':
                 Anunciantes, Campañas, Piezas de Contenido, Países de Interés (Pieza_Pais_Interes),
                 Espacios Publicitarios (4 paneles simultáneos por partido) y Algoritmo de Asignación
                 y Facturación de Exhibiciones Publicitarias (país participante, PBI per cápita, prime time).
@@ -371,6 +371,15 @@ GO
 -- =========================================================================================
 -- 6. ALGORITMO DE ASIGNACIÓN Y BAJA DE EXHIBICIÓN PUBLICITARIA (publicidad.Exhibicion)
 -- =========================================================================================
+
+/*
+    Paso 1) El SP recibe el @id_partido, valida que existan sus 4 espacios publicitarios disponibles y toma los datos del partido (fecha_hora_local, fecha_hora_utc y los países de la selección local y visitante).
+    Paso 2) Conversión de huso horario para cada mercado objetivo: según los países asociados a cada pieza en la tabla Pieza_Pais_Interes, convierte la hora UTC del partido al huso horario de cada país destino para determinar si cae en horario Prime Time (19:00 a 23:59 hs).
+    Paso 3) Filtro de vigencia y evaluación de candidatas: entran como candidatas todas las piezas cuya campaña esté vigente en la fecha del partido (fecha_inicio <= fecha_partido <= fecha_fin), evaluando para cada una: si su país juega el partido, su PBI per cápita, si está en Prime Time y el costo de la pieza.
+    Paso 4) Se establece un ranking (TOP 4) de las piezas más rentables/prioritarias ordenando por: 1° País participante en el partido, 2° Mayor PBI per cápita del mercado, 3° Horario Prime Time en el país destino y 4° Mayor costo de la pieza.
+    Paso 5) Se asignan las 4 piezas ganadoras a los 4 espacios publicitarios del partido en la tabla Exhibicion, registrando el orden de prioridad (1, 2 o 3) y el monto facturado.
+*/
+
 CREATE OR ALTER PROCEDURE publicidad.sp_AsignarPublicidadPartido
     @id_partido INT
 AS
@@ -401,6 +410,7 @@ BEGIN
             es_prime_time INT
         );
 
+        -- Se insertan en la tabla temporal 
         INSERT INTO @Puntajes (ID_Pieza, costo, es_pais_participante, pbi_percapita, es_prime_time)
         SELECT 
             pc.ID,
