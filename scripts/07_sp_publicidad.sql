@@ -32,12 +32,14 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- verifica si el partido existe
     IF NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido)
         THROW 50001, 'El partido indicado no existe.', 1;
 
+    -- verifica que el partido no tenga asignado espacios
     IF EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
         THROW 50002, 'Los espacios publicitarios ya fueron generados previamente para este partido.', 1;
-
+    
     BEGIN TRANSACTION;
     BEGIN TRY
         INSERT INTO publicidad.Espacio_publicitario (nombre, numero_slot, ID_Partido)
@@ -63,6 +65,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- verifica que los espacios existan
     IF NOT EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
         THROW 50015, 'No existen espacios publicitarios generados para el partido indicado.', 1;
 

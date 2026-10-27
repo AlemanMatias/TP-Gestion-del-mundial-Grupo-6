@@ -582,8 +582,8 @@ CREATE OR ALTER PROCEDURE partido.sp_RegistrarGol
     @ID_Jugador_asistencia INT = NULL,
     @ID_Seleccion INT,
     @Minuto SMALLINT,
-    @Tipo VARCHAR(30), -- 'Jugada', 'Penal', 'Tiro Libre', 'En contra'
-    @Periodo VARCHAR(30) -- 'Primer Tiempo', 'Segundo Tiempo', 'Tiempo Extra'
+    @Tipo VARCHAR(30), -- 'Jugada', 'Penal', 'Tiro Libre', 'En contra', 'Cabezazo'
+    @Periodo VARCHAR(30) -- 'Primer Tiempo', 'Segundo Tiempo', 'Adicionales', 'Alargue', 'Tiempo Extra', 'Definición por penales'
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -608,6 +608,45 @@ BEGIN
     )
         THROW 50021, 'El jugador autor del gol no está inscripto en la planilla/alineación de este partido.', 1;
 
+    -- Validar minuto
+    IF @Minuto <= 0 OR @Minuto > 140
+        THROW 50025, 'El minuto del gol es inválido.', 1;
+
+    -- Validar tipo y período del gol
+    IF @Tipo NOT IN ('Jugada', 'Penal', 'Tiro Libre', 'En contra', 'Cabezazo')
+        THROW 50037, 'El tipo de gol no es válido. Valores permitidos: Jugada, Penal, Tiro Libre, En contra, Cabezazo.', 1;
+
+    IF @Periodo NOT IN ('Primer Tiempo', 'Segundo Tiempo', 'Adicionales', 'Alargue', 'Tiempo Extra', 'Definición por penales')
+        THROW 50038, 'El período del gol no es válido.', 1;
+
+    -- Validar jugadas sin asistencia
+    IF @Tipo IN ('Penal', 'Tiro Libre', 'En contra') AND @ID_Jugador_asistencia IS NOT NULL
+        THROW 50040, 'Los goles de penal, tiro libre o en contra no admiten jugador asistente.', 1;
+
+    -- En Fase de Grupos no existen Alargue/Tiempo Extra ni Definición por penales
+    IF @Periodo IN ('Alargue', 'Tiempo Extra', 'Definición por penales')
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM partido.Partido p
+            JOIN administracion.Fase_Torneo ft ON ft.ID = p.ID_Fase
+            WHERE p.ID = @ID_Partido AND (ft.orden = 1 OR ft.nombre LIKE '%Grupo%')
+        )
+            THROW 50042, 'No se admiten alargues ni definiciones por penales en partidos de Fase de Grupos.', 1;
+    END
+
+    -- Validar reglas específicas de Definición por penales
+    IF @Periodo = 'Definición por penales'
+    BEGIN
+        IF @Tipo <> 'Penal'
+            THROW 50041, 'En la definición por penales el tipo de gol debe ser exclusivamente Penal.', 1;
+
+        IF EXISTS (
+            SELECT 1 FROM partido.Partido
+            WHERE ID = @ID_Partido AND ISNULL(goles_local, 0) <> ISNULL(goles_visitante, 0)
+        )
+            THROW 50043, 'Solo se puede registrar una definición por penales si el partido se encuentra empatado.', 1;
+    END
+
     -- Validar asistencia si fue enviada
     IF @ID_Jugador_asistencia IS NOT NULL
     BEGIN
@@ -623,24 +662,24 @@ BEGIN
             THROW 50023, 'El autor del gol y el asistente no pueden ser el mismo jugador.', 1;
     END
 
-    -- Validar minuto
-    IF @Minuto <= 0 OR @Minuto > 140
-        THROW 50025, 'El minuto del gol es inválido.', 1;
-
     BEGIN TRANSACTION;
     BEGIN TRY
         INSERT INTO partido.Gol (ID_Partido, ID_Jugador_autor, ID_Jugador_asistencia, ID_Seleccion, minuto, tipo, periodo)
         VALUES (@ID_Partido, @ID_Jugador_autor, @ID_Jugador_asistencia, @ID_Seleccion, @Minuto, @Tipo, @Periodo);
 
-        -- Actualizar el marcador del partido (goles_local / goles_visitante)
+        -- Actualizar el marcador del partido (excluyendo la tanda de Definición por penales)
         UPDATE p
         SET goles_local = ISNULL((
                 SELECT COUNT(*) FROM partido.Gol g
-                WHERE g.ID_Partido = p.ID AND g.ID_Seleccion = p.ID_Seleccion_Local
+                WHERE g.ID_Partido = p.ID 
+                  AND g.ID_Seleccion = p.ID_Seleccion_Local
+                  AND g.periodo <> 'Definición por penales'
             ), 0),
             goles_visitante = ISNULL((
                 SELECT COUNT(*) FROM partido.Gol g
-                WHERE g.ID_Partido = p.ID AND g.ID_Seleccion = p.ID_Seleccion_Visitante
+                WHERE g.ID_Partido = p.ID 
+                  AND g.ID_Seleccion = p.ID_Seleccion_Visitante
+                  AND g.periodo <> 'Definición por penales'
             ), 0)
         FROM partido.Partido p
         WHERE p.ID = @ID_Partido;
@@ -675,6 +714,12 @@ BEGIN
 
     IF @Minuto IS NOT NULL AND (@Minuto <= 0 OR @Minuto > 140)
         THROW 50025, 'El minuto del gol es inválido.', 1;
+
+    IF @Tipo IS NOT NULL AND @Tipo NOT IN ('Jugada', 'Penal', 'Tiro Libre', 'En contra', 'Cabezazo')
+        THROW 50037, 'El tipo de gol no es válido. Valores permitidos: Jugada, Penal, Tiro Libre, En contra, Cabezazo.', 1;
+
+    IF @Periodo IS NOT NULL AND @Periodo NOT IN ('Primer Tiempo', 'Segundo Tiempo', 'Adicionales', 'Alargue', 'Tiempo Extra', 'Definición por penales')
+        THROW 50038, 'El período del gol no es válido.', 1;
 
     IF @ID_Jugador_autor IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM partido.Alineacion al
@@ -732,15 +777,19 @@ BEGIN
     BEGIN TRY
         DELETE FROM partido.Gol WHERE ID = @ID_Gol;
 
-        -- Recalcular automáticamente el marcador del partido tras anular el gol
+        -- Recalcular automáticamente el marcador del partido tras anular el gol (excluyendo Definición por penales)
         UPDATE p
         SET goles_local = ISNULL((
                 SELECT COUNT(*) FROM partido.Gol g
-                WHERE g.ID_Partido = p.ID AND g.ID_Seleccion = p.ID_Seleccion_Local
+                WHERE g.ID_Partido = p.ID 
+                  AND g.ID_Seleccion = p.ID_Seleccion_Local
+                  AND g.periodo <> 'Definición por penales'
             ), 0),
             goles_visitante = ISNULL((
                 SELECT COUNT(*) FROM partido.Gol g
-                WHERE g.ID_Partido = p.ID AND g.ID_Seleccion = p.ID_Seleccion_Visitante
+                WHERE g.ID_Partido = p.ID 
+                  AND g.ID_Seleccion = p.ID_Seleccion_Visitante
+                  AND g.periodo <> 'Definición por penales'
             ), 0)
         FROM partido.Partido p
         WHERE p.ID = @ID_Partido;

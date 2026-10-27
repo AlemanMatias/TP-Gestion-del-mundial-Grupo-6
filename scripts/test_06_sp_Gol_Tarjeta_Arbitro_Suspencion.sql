@@ -550,6 +550,65 @@ BEGIN TRY
             INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
+    -- 3.N. Error 50040: Bloqueo de asistencia en gol de penal
+    BEGIN TRY
+        EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, @jg2, @id_sg_loc, 80, 'Penal', 'Segundo Tiempo';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50040');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50040
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Validación THROW', 'OK', 'Capturado 50040: ' + ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 3.O. Error 50042: Bloqueo de alargue o definición por penales en Fase de Grupos
+    BEGIN TRY
+        EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, NULL, @id_sg_loc, 120, 'Penal', 'Definición por penales';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo tanda de penales en Fase de Grupos', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50042');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50042
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo tanda de penales en Fase de Grupos', 'Validación THROW', 'OK', 'Capturado 50042: ' + ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo tanda de penales en Fase de Grupos', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 3.P. Partido de Fase Eliminatoria: bloqueo si no está empatado (50043) y éxito de tanda de penales al empatar
+    DECLARE @id_fase_elim_g INT, @id_part_elim_g INT, @id_form_elim_g INT;
+    EXEC administracion.sp_InsertarFaseTorneo @nombre = 'Cuartos Goles Test', @orden = 4, @id_generado = @id_fase_elim_g OUTPUT;
+    EXEC partido.sp_CrearPartido @id_sede = @id_sede_g, @id_fase = @id_fase_elim_g, @fecha_hora_local = '2026-07-04 19:00:00', @id_local = @id_sg_loc, @id_visitante = @id_sg_vis;
+    SELECT TOP 1 @id_part_elim_g = ID FROM partido.Partido WHERE ID_Fase = @id_fase_elim_g ORDER BY ID DESC;
+    EXEC partido.sp_RegistrarFormacion @id_partido = @id_part_elim_g, @id_seleccion = @id_sg_loc, @esquema_tactico = '4-3-3';
+    SELECT TOP 1 @id_form_elim_g = ID FROM partido.Formacion_Partido WHERE ID_Partido = @id_part_elim_g AND ID_Seleccion = @id_sg_loc;
+    EXEC partido.sp_RegistrarAlineacion @id_formacion = @id_form_elim_g, @id_jugador = @jg1, @es_titular = 1;
+    EXEC partido.sp_RegistrarAlineacion @id_formacion = @id_form_elim_g, @id_jugador = @jg2, @es_titular = 1;
+
+    -- Local se pone 1-0 en Alargue
+    EXEC partido.sp_RegistrarGol @id_part_elim_g, @jg1, NULL, @id_sg_loc, 105, 'Jugada', 'Alargue';
+
+    -- Intento de Definición por penales estando 1-0 (debe fallar con 50043)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarGol @id_part_elim_g, @jg1, NULL, @id_sg_loc, 120, 'Penal', 'Definición por penales';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50043');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50043
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Validación THROW', 'OK', 'Capturado 50043: ' + ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- Empata el partido 1-1 (gol en contra para visitante) y ahora sí permite Definición por penales manteniendo el 1-1 de juego
+    EXEC partido.sp_RegistrarGol @id_part_elim_g, @jg2, NULL, @id_sg_vis, 118, 'En contra', 'Alargue';
+    EXEC partido.sp_RegistrarGol @id_part_elim_g, @jg1, NULL, @id_sg_loc, 120, 'Penal', 'Definición por penales';
+
+    IF EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_part_elim_g AND goles_local = 1 AND goles_visitante = 1)
+       AND EXISTS (SELECT 1 FROM partido.Gol WHERE ID_Partido = @id_part_elim_g AND periodo = 'Definición por penales')
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Definición por penales en eliminatoria empatada (1-1)', 'Caso de Éxito', 'OK', 'Penal de definición registrado manteniendo 1-1 en los 120 min.');
+    ELSE
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Definición por penales en eliminatoria empatada (1-1)', 'Caso de Éxito', 'FALLÓ', 'Error al registrar definición por penales.');
+
 END TRY
 BEGIN CATCH
     INSERT INTO @Reporte VALUES ('Bloque 3', 'Excepción crítica en Bloque 3', 'Error Crítico', 'FALLÓ', ERROR_MESSAGE());
