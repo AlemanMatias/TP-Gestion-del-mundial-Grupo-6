@@ -13,13 +13,11 @@
      - Villa, Brenda
      
    Script: test_06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql
-   Descripción: Lote de pruebas unitarias para los Stored Procedures de 06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql.
-                Valida el ciclo ABM completo y reglas de negocio de:
-                - Árbitros e Idiomas (alta, modificación, baja y validaciones).
-                - Designación Arbitral (alta con validación de conflicto de nacionalidad, modificación de informe, baja).
-                - Goles (alta, modificación, baja con recálculo dinámico del marcador del partido).
-                - Tarjetas, Suspensiones y Partidos Perdidos por Suspensión (alta, modificación, baja, acumulación
-                  de amarillas, bloqueo de alineación, cumplimiento de fecha en Partido_Perdido_Suspension).
+   Descripción: 
+                - Árbitros e Idiomas 
+                - Designación Arbitral
+                - Goles 
+                - Tarjetas, Suspensiones y Partidos Perdidos por Suspensión 
 */
 
 USE Mundial2026;
@@ -31,10 +29,10 @@ SET NOCOUNT ON;
 DECLARE @Reporte TABLE (
     ID INT IDENTITY(1,1),
     Procedimiento VARCHAR(50),
-    Escenario VARCHAR(65),
-    Tipo_Prueba VARCHAR(25),
+    Escenario VARCHAR(80),
+    Tipo_Prueba VARCHAR(30),
     Resultado VARCHAR(10),
-    Detalle VARCHAR(255)
+    Detalle VARCHAR(500)
 );
 
 PRINT '======================================================================';
@@ -42,7 +40,7 @@ PRINT 'INICIANDO LOTE DE PRUEBAS 1:1 - MÓDULO GOLES, TARJETAS Y ÁRBITROS (06)'
 PRINT '======================================================================';
 
 -- =========================================================================================
--- 1. BLOQUE DE PRUEBAS: ABM DE ÁRBITROS E IDIOMAS (sp_GestionarArbitro y sp_GestionarIdiomaArbitro)
+-- 1. BLOQUE DE PRUEBAS: ABM DE ÁRBITROS E IDIOMAS (sp_Insertar/Modificar/EliminarArbitro e IdiomaArbitro)
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
@@ -52,147 +50,170 @@ BEGIN TRY
 
     -- 1.A. Alta exitosa de árbitro
     DECLARE @id_arb INT;
-    EXEC arbitraje.sp_GestionarArbitro
-        @Operacion = 'ALTA',
-        @ID = @id_arb OUTPUT,
+    EXEC arbitraje.sp_InsertarArbitro
         @Nombre = 'Pierluigi',
         @Apellido = 'Collina',
         @Categoria = 'FIFA Elite',
-        @ID_Pais = @id_pais_arb1;
+        @ID_Pais = @id_pais_arb1,
+        @ID = @id_arb OUTPUT;
 
     IF @id_arb IS NOT NULL AND EXISTS (SELECT 1 FROM arbitraje.Arbitro WHERE ID = @id_arb AND apellido = 'Collina')
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Alta exitosa de árbitro', 'Caso de Éxito', 'OK', 'Árbitro creado con ID: ' + CAST(@id_arb AS VARCHAR));
+        INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Alta exitosa de árbitro', 'Caso de Éxito', 'OK', 'Árbitro creado con ID: ' + CAST(@id_arb AS VARCHAR));
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Alta exitosa de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se insertó el árbitro.');
+        INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Alta exitosa de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se insertó el árbitro.');
 
     -- 1.B. Modificación exitosa de árbitro
-    EXEC arbitraje.sp_GestionarArbitro
-        @Operacion = 'MODIFICAR',
+    EXEC arbitraje.sp_ModificarArbitro
         @ID = @id_arb,
         @Categoria = 'FIFA Master',
         @ID_Pais = @id_pais_arb2;
 
     IF EXISTS (SELECT 1 FROM arbitraje.Arbitro WHERE ID = @id_arb AND categoria = 'FIFA Master' AND ID_Pais = @id_pais_arb2)
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Modificación exitosa de árbitro', 'Caso de Éxito', 'OK', 'Categoría y país actualizados correctamente.');
+        INSERT INTO @Reporte VALUES ('sp_ModificarArbitro', 'Modificación exitosa de árbitro', 'Caso de Éxito', 'OK', 'Categoría y país actualizados correctamente.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Modificación exitosa de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se actualizaron los datos del árbitro.');
+        INSERT INTO @Reporte VALUES ('sp_ModificarArbitro', 'Modificación exitosa de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se actualizaron los datos del árbitro.');
 
-    -- 1.C. Error 50010: Alta de árbitro con campos obligatorios nulos
+    -- 1.C. Error 50010: Alta de árbitro con campos obligatorios nulos o vacíos
     BEGIN TRY
         DECLARE @id_arb_err INT;
-        EXEC arbitraje.sp_GestionarArbitro @Operacion = 'ALTA', @ID = @id_arb_err OUTPUT, @Nombre = 'Incompleto';
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo alta con campos faltantes', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50010');
+        EXEC arbitraje.sp_InsertarArbitro @Nombre = 'Incompleto', @Apellido = NULL, @Categoria = NULL, @ID_Pais = @id_pais_arb1, @ID = @id_arb_err OUTPUT;
+        INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Bloqueo alta con campos faltantes', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50010');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50010
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo alta con campos faltantes', 'Validación THROW', 'OK', 'Capturado 50010: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Bloqueo alta con campos faltantes', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo alta con campos faltantes', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Bloqueo alta con campos faltantes', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.D. Error 50016: Alta de árbitro con país inexistente
     BEGIN TRY
         DECLARE @id_arb_err2 INT;
-        EXEC arbitraje.sp_GestionarArbitro @Operacion = 'ALTA', @ID = @id_arb_err2 OUTPUT, @Nombre = 'Howard', @Apellido = 'Webb', @Categoria = 'FIFA Elite', @ID_Pais = 999999;
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo país inexistente en árbitro', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50016');
+        EXEC arbitraje.sp_InsertarArbitro @Nombre = 'Howard', @Apellido = 'Webb', @Categoria = 'FIFA Elite', @ID_Pais = 999999, @ID = @id_arb_err2 OUTPUT;
+        INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Bloqueo país inexistente en árbitro', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50016');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50016
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo país inexistente en árbitro', 'Validación THROW', 'OK', 'Capturado 50016: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Bloqueo país inexistente en árbitro', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo país inexistente en árbitro', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Bloqueo país inexistente en árbitro', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.E. Error 50011: Modificación de árbitro inexistente
     BEGIN TRY
-        EXEC arbitraje.sp_GestionarArbitro @Operacion = 'MODIFICAR', @ID = 999999, @Nombre = 'Fantasma';
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo modificación árbitro inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50011');
+        EXEC arbitraje.sp_ModificarArbitro @ID = 999999, @Nombre = 'Fantasma';
+        INSERT INTO @Reporte VALUES ('sp_ModificarArbitro', 'Bloqueo modificación árbitro inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50011');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50011
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo modificación árbitro inexistente', 'Validación THROW', 'OK', 'Capturado 50011: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_ModificarArbitro', 'Bloqueo modificación árbitro inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo modificación árbitro inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_ModificarArbitro', 'Bloqueo modificación árbitro inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 1.F. Error 50014: Operación inválida en gestión de árbitro
+    -- 1.F. Alta exitosa de idiomas para el árbitro
+    EXEC arbitraje.sp_InsertarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Italiano';
+    EXEC arbitraje.sp_InsertarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Inglés';
+
+    IF (SELECT COUNT(*) FROM arbitraje.Idioma WHERE ID_Arbitro = @id_arb) = 2
+        INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Inserción exitosa de idiomas de árbitro', 'Caso de Éxito', 'OK', '2 idiomas asociados al árbitro.');
+    ELSE
+        INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Inserción exitosa de idiomas de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se registraron los idiomas.');
+
+    -- 1.G. Error 50014: Idioma duplicado en el mismo árbitro
     BEGIN TRY
-        EXEC arbitraje.sp_GestionarArbitro @Operacion = 'BORRAR_TODO', @ID = @id_arb;
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo operación inválida', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50014');
+        EXEC arbitraje.sp_InsertarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Italiano';
+        INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo idioma duplicado en árbitro', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50014');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50014
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo operación inválida', 'Validación THROW', 'OK', 'Capturado 50014: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo idioma duplicado en árbitro', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo operación inválida', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo idioma duplicado en árbitro', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 1.G. Alta exitosa de idiomas para el árbitro
-    EXEC arbitraje.sp_GestionarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Italiano', @Accion = 'INSERTAR';
-    EXEC arbitraje.sp_GestionarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Inglés', @Accion = 'INSERTAR';
-
-    IF (SELECT COUNT(*) FROM arbitraje.Idioma WHERE ID_Arbitro = @id_arb) = 2
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Inserción exitosa de idiomas de árbitro', 'Caso de Éxito', 'OK', '2 idiomas asociados al árbitro.');
-    ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Inserción exitosa de idiomas de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se registraron los idiomas.');
-
     -- 1.H. Modificación exitosa de idioma del árbitro
-    EXEC arbitraje.sp_GestionarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Inglés', @Accion = 'MODIFICAR', @NuevaLengua = 'Francés';
+    EXEC arbitraje.sp_ModificarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Inglés', @NuevaLengua = 'Francés';
 
     IF EXISTS (SELECT 1 FROM arbitraje.Idioma WHERE ID_Arbitro = @id_arb AND lengua = 'Francés')
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Modificación exitosa de idioma de árbitro', 'Caso de Éxito', 'OK', 'Idioma actualizado de Inglés a Francés.');
+        INSERT INTO @Reporte VALUES ('sp_ModificarIdiomaArbitro', 'Modificación exitosa de idioma de árbitro', 'Caso de Éxito', 'OK', 'Idioma actualizado de Inglés a Francés.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Modificación exitosa de idioma de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se modificó el idioma.');
+        INSERT INTO @Reporte VALUES ('sp_ModificarIdiomaArbitro', 'Modificación exitosa de idioma de árbitro', 'Caso de Éxito', 'FALLÓ', 'No se modificó el idioma.');
 
     -- 1.I. Eliminación exitosa de un idioma del árbitro
-    EXEC arbitraje.sp_GestionarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Francés', @Accion = 'ELIMINAR';
+    EXEC arbitraje.sp_EliminarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Francés';
 
     IF NOT EXISTS (SELECT 1 FROM arbitraje.Idioma WHERE ID_Arbitro = @id_arb AND lengua = 'Francés')
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Baja exitosa de idioma de árbitro', 'Caso de Éxito', 'OK', 'Idioma Francés eliminado correctamente.');
+        INSERT INTO @Reporte VALUES ('sp_EliminarIdiomaArbitro', 'Baja exitosa de idioma de árbitro', 'Caso de Éxito', 'OK', 'Idioma Francés eliminado correctamente.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Baja exitosa de idioma de árbitro', 'Caso de Éxito', 'FALLÓ', 'El idioma sigue existiendo.');
+        INSERT INTO @Reporte VALUES ('sp_EliminarIdiomaArbitro', 'Baja exitosa de idioma de árbitro', 'Caso de Éxito', 'FALLÓ', 'El idioma sigue existiendo.');
 
     -- 1.J. Error 50015: Idioma sobre árbitro inexistente
     BEGIN TRY
-        EXEC arbitraje.sp_GestionarIdiomaArbitro @ID_Arbitro = 999999, @Lengua = 'Alemán', @Accion = 'INSERTAR';
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Bloqueo árbitro inexistente en idioma', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50015');
+        EXEC arbitraje.sp_InsertarIdiomaArbitro @ID_Arbitro = 999999, @Lengua = 'Alemán';
+        INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo árbitro inexistente en idioma', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50015');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50015
-            INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Bloqueo árbitro inexistente en idioma', 'Validación THROW', 'OK', 'Capturado 50015: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo árbitro inexistente en idioma', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Bloqueo árbitro inexistente en idioma', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo árbitro inexistente en idioma', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 1.K. Error 50017: Acción inválida en gestión de idioma
+    -- 1.K. Error 50017: Lengua vacía al insertar idioma
     BEGIN TRY
-        EXEC arbitraje.sp_GestionarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = 'Francés', @Accion = 'INVALIDA';
-        INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Bloqueo acción inválida en idioma', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50017');
+        EXEC arbitraje.sp_InsertarIdiomaArbitro @ID_Arbitro = @id_arb, @Lengua = '   ';
+        INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo lengua vacía en idioma', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50017');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50017
-            INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Bloqueo acción inválida en idioma', 'Validación THROW', 'OK', 'Capturado 50017: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo lengua vacía en idioma', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarIdiomaArbitro', 'Bloqueo acción inválida en idioma', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Bloqueo lengua vacía en idioma', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.L. Baja exitosa de árbitro (limpia sus idiomas y borra el árbitro)
-    EXEC arbitraje.sp_GestionarArbitro @Operacion = 'BAJA', @ID = @id_arb;
+    EXEC arbitraje.sp_EliminarArbitro @ID = @id_arb;
     IF NOT EXISTS (SELECT 1 FROM arbitraje.Arbitro WHERE ID = @id_arb)
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Baja exitosa de árbitro sin designaciones', 'Caso de Éxito', 'OK', 'Árbitro e idiomas dados de baja correctamente.');
+        INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Baja exitosa de árbitro sin designaciones', 'Caso de Éxito', 'OK', 'Árbitro e idiomas dados de baja correctamente.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Baja exitosa de árbitro sin designaciones', 'Caso de Éxito', 'FALLÓ', 'El árbitro aún figura en la tabla.');
+        INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Baja exitosa de árbitro sin designaciones', 'Caso de Éxito', 'FALLÓ', 'El árbitro aún figura en la tabla.');
 
     -- 1.M. Error 50012: Baja de árbitro ya eliminado / inexistente
     BEGIN TRY
-        EXEC arbitraje.sp_GestionarArbitro @Operacion = 'BAJA', @ID = @id_arb;
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo baja de árbitro inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50012');
+        EXEC arbitraje.sp_EliminarArbitro @ID = @id_arb;
+        INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Bloqueo baja de árbitro inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50012');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50012
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo baja de árbitro inexistente', 'Validación THROW', 'OK', 'Capturado 50012: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Bloqueo baja de árbitro inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo baja de árbitro inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Bloqueo baja de árbitro inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 1.N. Caso de Falla Múltiple en sp_InsertarArbitro (50010 + 50016 simultáneos)
+    BEGIN TRY
+        DECLARE @id_arb_mult INT;
+        EXEC arbitraje.sp_InsertarArbitro @Nombre = NULL, @Apellido = NULL, @Categoria = 'FIFA Elite', @ID_Pais = 999999, @ID = @id_arb_mult OUTPUT;
+        INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Validación múltiple: campos nulos + país inexistente', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50010 y 50016');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50010)%' AND ERROR_MESSAGE() LIKE '%(50016)%'
+            INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Validación múltiple: campos nulos + país inexistente', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_InsertarArbitro', 'Validación múltiple: campos nulos + país inexistente', 'Caso de Falla Múltiple', 'FALLÓ', 'No acumuló ambos: ' + ERROR_MESSAGE());
+    END CATCH;
+
+    -- 1.O. Caso de Falla Múltiple en sp_InsertarIdiomaArbitro (50015 + 50017 simultáneos)
+    BEGIN TRY
+        EXEC arbitraje.sp_InsertarIdiomaArbitro @ID_Arbitro = 999999, @Lengua = '';
+        INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Validación múltiple: árbitro inexistente + lengua vacía', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50015 y 50017');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50015)%' AND ERROR_MESSAGE() LIKE '%(50017)%'
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Validación múltiple: árbitro inexistente + lengua vacía', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_InsertarIdiomaArbitro', 'Validación múltiple: árbitro inexistente + lengua vacía', 'Caso de Falla Múltiple', 'FALLÓ', 'No acumuló ambos: ' + ERROR_MESSAGE());
     END CATCH;
 
 END TRY
@@ -234,8 +255,8 @@ BEGIN TRY
 
     -- Creamos un árbitro neutral y un árbitro con nacionalidad de la Selección Visitante
     DECLARE @id_arb_neutral INT, @id_arb_conflicto INT;
-    EXEC arbitraje.sp_GestionarArbitro @Operacion = 'ALTA', @ID = @id_arb_neutral OUTPUT, @Nombre = 'Szymon', @Apellido = 'Marciniak', @Categoria = 'FIFA Elite', @ID_Pais = @id_pais_neu;
-    EXEC arbitraje.sp_GestionarArbitro @Operacion = 'ALTA', @ID = @id_arb_conflicto OUTPUT, @Nombre = 'Arbitro', @Apellido = 'Parcial', @Categoria = 'FIFA Elite', @ID_Pais = @id_pais_vis;
+    EXEC arbitraje.sp_InsertarArbitro @Nombre = 'Szymon', @Apellido = 'Marciniak', @Categoria = 'FIFA Elite', @ID_Pais = @id_pais_neu, @ID = @id_arb_neutral OUTPUT;
+    EXEC arbitraje.sp_InsertarArbitro @Nombre = 'Arbitro', @Apellido = 'Parcial', @Categoria = 'FIFA Elite', @ID_Pais = @id_pais_vis, @ID = @id_arb_conflicto OUTPUT;
 
     -- 2.A. Designación exitosa de árbitro neutral
     EXEC arbitraje.sp_DesignarArbitro @ID_Partido = @id_part_grupos, @ID_Arbitro = @id_arb_neutral, @Rol = 'Árbitro Principal', @Informe = 'Partido sin incidencias previas.';
@@ -254,49 +275,49 @@ BEGIN TRY
     -- 2.C. Error 50008: Modificación de designación inexistente
     BEGIN TRY
         EXEC arbitraje.sp_ModificarDesignacionArbitro @ID_Partido = 999999, @ID_Arbitro = @id_arb_neutral, @Informe = 'Test';
-        INSERT INTO @Reporte VALUES ('sp_ModificarDesignacionArbitro', 'Bloqueo modificación designación inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50008');
+        INSERT INTO @Reporte VALUES ('sp_ModificarDesignacionArbitro', 'Bloqueo modificación designación inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50008');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50008
-            INSERT INTO @Reporte VALUES ('sp_ModificarDesignacionArbitro', 'Bloqueo modificación designación inexistente', 'Validación THROW', 'OK', 'Capturado 50008: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_ModificarDesignacionArbitro', 'Bloqueo modificación designación inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_ModificarDesignacionArbitro', 'Bloqueo modificación designación inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_ModificarDesignacionArbitro', 'Bloqueo modificación designación inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.D. Error 50002: Bloqueo por conflicto de nacionalidad (país del árbitro = país selección visitante)
     BEGIN TRY
         EXEC arbitraje.sp_DesignarArbitro @ID_Partido = @id_part_grupos, @ID_Arbitro = @id_arb_conflicto, @Rol = 'VAR';
-        INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo conflicto de nacionalidad FIFA', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50002');
+        INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo conflicto de nacionalidad FIFA', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50002');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50002
-            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo conflicto de nacionalidad FIFA', 'Validación THROW', 'OK', 'Capturado 50002: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo conflicto de nacionalidad FIFA', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo conflicto de nacionalidad FIFA', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo conflicto de nacionalidad FIFA', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.E. Error 50003: Bloqueo de doble designación del mismo árbitro en el mismo partido
     BEGIN TRY
         EXEC arbitraje.sp_DesignarArbitro @ID_Partido = @id_part_grupos, @ID_Arbitro = @id_arb_neutral, @Rol = 'Cuarto Árbitro';
-        INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo árbitro duplicado en el partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50003');
+        INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo árbitro duplicado en el partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50003');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50003
-            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo árbitro duplicado en el partido', 'Validación THROW', 'OK', 'Capturado 50003: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo árbitro duplicado en el partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo árbitro duplicado en el partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo árbitro duplicado en el partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.F. Error 50001: Bloqueo por partido o árbitro inexistente
     BEGIN TRY
         EXEC arbitraje.sp_DesignarArbitro @ID_Partido = 999999, @ID_Arbitro = @id_arb_neutral, @Rol = 'Principal';
-        INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo partido o árbitro inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50001');
+        INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo partido o árbitro inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50001');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50001
-            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo partido o árbitro inexistente', 'Validación THROW', 'OK', 'Capturado 50001: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo partido o árbitro inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo partido o árbitro inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_DesignarArbitro', 'Bloqueo partido o árbitro inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.G. Designación en fase eliminatoria (orden >= 2 con advertencia FIFA)
@@ -308,14 +329,14 @@ BEGIN TRY
 
     -- 2.H. Error 50013: Bloqueo de baja de árbitro que ya dirigió partidos
     BEGIN TRY
-        EXEC arbitraje.sp_GestionarArbitro @Operacion = 'BAJA', @ID = @id_arb_neutral;
-        INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo baja de árbitro con designaciones', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50013');
+        EXEC arbitraje.sp_EliminarArbitro @ID = @id_arb_neutral;
+        INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Bloqueo baja de árbitro con designaciones', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50013');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50013
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo baja de árbitro con designaciones', 'Validación THROW', 'OK', 'Capturado 50013: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Bloqueo baja de árbitro con designaciones', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarArbitro', 'Bloqueo baja de árbitro con designaciones', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarArbitro', 'Bloqueo baja de árbitro con designaciones', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.I. Eliminación exitosa de designación arbitral
@@ -328,13 +349,13 @@ BEGIN TRY
     -- 2.J. Error 50009: Eliminación de designación inexistente
     BEGIN TRY
         EXEC arbitraje.sp_EliminarDesignacionArbitro @ID_Partido = @id_part_elim, @ID_Arbitro = @id_arb_neutral;
-        INSERT INTO @Reporte VALUES ('sp_EliminarDesignacionArbitro', 'Bloqueo baja de designación inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50009');
+        INSERT INTO @Reporte VALUES ('sp_EliminarDesignacionArbitro', 'Bloqueo baja de designación inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50009');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50009
-            INSERT INTO @Reporte VALUES ('sp_EliminarDesignacionArbitro', 'Bloqueo baja de designación inexistente', 'Validación THROW', 'OK', 'Capturado 50009: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarDesignacionArbitro', 'Bloqueo baja de designación inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarDesignacionArbitro', 'Bloqueo baja de designación inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarDesignacionArbitro', 'Bloqueo baja de designación inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
 END TRY
@@ -454,85 +475,85 @@ BEGIN TRY
     -- 3.F. Error 50026 y 50027: Modificar y eliminar gol inexistente
     BEGIN TRY
         EXEC partido.sp_EliminarGol @ID_Gol = 999999;
-        INSERT INTO @Reporte VALUES ('sp_EliminarGol', 'Bloqueo baja de gol inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50027');
+        INSERT INTO @Reporte VALUES ('sp_EliminarGol', 'Bloqueo baja de gol inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50027');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50027
-            INSERT INTO @Reporte VALUES ('sp_EliminarGol', 'Bloqueo baja de gol inexistente', 'Validación THROW', 'OK', 'Capturado 50027: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarGol', 'Bloqueo baja de gol inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarGol', 'Bloqueo baja de gol inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarGol', 'Bloqueo baja de gol inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.G. Error 50020: Partido inexistente
     BEGIN TRY
         EXEC partido.sp_RegistrarGol 999999, @jg1, NULL, @id_sg_loc, 10, 'Jugada', 'Primer Tiempo';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50020');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50020');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50020
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo partido inexistente', 'Validación THROW', 'OK', 'Capturado 50020: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo partido inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.H. Error 50024: Selección no participa en el partido
     BEGIN TRY
         EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, NULL, @id_sg_aje, 10, 'Jugada', 'Primer Tiempo';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo selección ajena al partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50024');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo selección ajena al partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50024');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50024
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo selección ajena al partido', 'Validación THROW', 'OK', 'Capturado 50024: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo selección ajena al partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo selección ajena al partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo selección ajena al partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.I. Error 50021: Autor del gol no alineado en el partido
     BEGIN TRY
         EXEC partido.sp_RegistrarGol @id_part_gol, @jg_no_alin, NULL, @id_sg_loc, 10, 'Jugada', 'Primer Tiempo';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor no alineado en el partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50021');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor no alineado en el partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50021');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50021
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor no alineado en el partido', 'Validación THROW', 'OK', 'Capturado 50021: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor no alineado en el partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor no alineado en el partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor no alineado en el partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.J. Error 50022: Asistente no alineado en el partido
     BEGIN TRY
         EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, @jg_no_alin, @id_sg_loc, 10, 'Jugada', 'Primer Tiempo';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistente no alineado en el partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50022');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistente no alineado en el partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50022');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50022
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistente no alineado en el partido', 'Validación THROW', 'OK', 'Capturado 50022: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistente no alineado en el partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistente no alineado en el partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistente no alineado en el partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.K. Error 50023: Autor y asistente son el mismo jugador
     BEGIN TRY
         EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, @jg1, @id_sg_loc, 10, 'Jugada', 'Primer Tiempo';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor y asistente idénticos', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50023');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor y asistente idénticos', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50023');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50023
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor y asistente idénticos', 'Validación THROW', 'OK', 'Capturado 50023: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor y asistente idénticos', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor y asistente idénticos', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo autor y asistente idénticos', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.L. Error 50025: Minuto del gol inválido
     BEGIN TRY
-        EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, NULL, @id_sg_loc, 145, 'Jugada', 'Tiempo Extra';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo minuto fuera de rango (>140)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50025');
+        EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, NULL, @id_sg_loc, 145, 'Jugada', 'Segundo Tiempo';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo minuto fuera de rango (>140)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50025');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50025
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo minuto fuera de rango (>140)', 'Validación THROW', 'OK', 'Capturado 50025: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo minuto fuera de rango (>140)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo minuto fuera de rango (>140)', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo minuto fuera de rango (>140)', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.M. Error 50039: Bloqueo de anulación de sustitución si el jugador ingresado ya anotó un gol
@@ -541,37 +562,37 @@ BEGIN TRY
 
     BEGIN TRY
         EXEC partido.sp_EliminarSustitucion @id_sustitucion = @id_sust_gol;
-        INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50039');
+        INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50039');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50039
-            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Validación THROW', 'OK', 'Capturado 50039: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo anular cambio de jugador con gol', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.N. Error 50040: Bloqueo de asistencia en gol de penal
     BEGIN TRY
         EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, @jg2, @id_sg_loc, 80, 'Penal', 'Segundo Tiempo';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50040');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50040');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50040
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Validación THROW', 'OK', 'Capturado 50040: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo asistencia en gol de penal', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.O. Error 50042: Bloqueo de alargue o definición por penales en Fase de Grupos
     BEGIN TRY
-        EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, NULL, @id_sg_loc, 120, 'Penal', 'Definición por penales';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo tanda de penales en Fase de Grupos', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50042');
+        EXEC partido.sp_RegistrarGol @id_part_gol, @jg1, NULL, @id_sg_loc, 105, 'Jugada', 'Alargue';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo alargue/penales en Fase de Grupos', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50042');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50042
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo tanda de penales en Fase de Grupos', 'Validación THROW', 'OK', 'Capturado 50042: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo alargue/penales en Fase de Grupos', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo tanda de penales en Fase de Grupos', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo alargue/penales en Fase de Grupos', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.P. Partido de Fase Eliminatoria: bloqueo si no está empatado (50043) y éxito de tanda de penales al empatar
@@ -590,13 +611,13 @@ BEGIN TRY
     -- Intento de Definición por penales estando 1-0 (debe fallar con 50043)
     BEGIN TRY
         EXEC partido.sp_RegistrarGol @id_part_elim_g, @jg1, NULL, @id_sg_loc, 120, 'Penal', 'Definición por penales';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50043');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50043');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50043
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Validación THROW', 'OK', 'Capturado 50043: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Bloqueo definición por penales sin empate', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- Empata el partido 1-1 (gol en contra para visitante) y ahora sí permite Definición por penales manteniendo el 1-1 de juego
@@ -608,6 +629,18 @@ BEGIN TRY
         INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Definición por penales en eliminatoria empatada (1-1)', 'Caso de Éxito', 'OK', 'Penal de definición registrado manteniendo 1-1 en los 120 min.');
     ELSE
         INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Definición por penales en eliminatoria empatada (1-1)', 'Caso de Éxito', 'FALLÓ', 'Error al registrar definición por penales.');
+
+    -- 3.Q. Caso de Falla Múltiple en sp_RegistrarGol (50024 + 50021 + 50025 simultáneos)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarGol @id_part_gol, @jg_no_alin, NULL, @id_sg_aje, 150, 'Jugada', 'Primer Tiempo';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Validación múltiple: selección ajena + autor no alineado + min>140', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar múltiples errores');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50024)%' AND ERROR_MESSAGE() LIKE '%(50021)%' AND ERROR_MESSAGE() LIKE '%(50025)%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Validación múltiple: selección ajena + autor no alineado + min>140', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarGol', 'Validación múltiple: selección ajena + autor no alineado + min>140', 'Caso de Falla Múltiple', 'FALLÓ', 'No acumuló todos: ' + ERROR_MESSAGE());
+    END CATCH;
 
 END TRY
 BEGIN CATCH
@@ -725,17 +758,31 @@ BEGIN TRY
     -- 4.C. Error 50023 (Caso obligatorio TP): Jugador suspendido no puede ser alineado en el siguiente partido (Partido 3)
     BEGIN TRY
         EXEC partido.sp_RegistrarAlineacion @id_formacion = @id_form_f3, @id_jugador = @jt_acum, @es_titular = 1;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador suspendido en partido siguiente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50023');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador suspendido en partido siguiente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50023');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50023
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador suspendido en partido siguiente', 'Validación THROW', 'OK', 'Capturado 50023: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador suspendido en partido siguiente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador suspendido en partido siguiente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador suspendido en partido siguiente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.D. Cumplimiento de suspensión en Partido 3 (Partido_Perdido_Suspension) y rehabilitación en Partido 4
     EXEC partido.sp_RegistrarCumplimientoSuspension @ID_Suspension = @id_susp_acum, @ID_Partido_Perdido = @id_part_f3;
+
+    -- 4.E. Error 50031: Bloqueo de intento de descontar fecha de una suspensión ya cumplida (en Partido 4 antes de alinearlo)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarCumplimientoSuspension @ID_Suspension = @id_susp_acum, @ID_Partido_Perdido = @id_part_f4;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Bloqueo descuento sobre suspensión ya cumplida', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50031');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50031
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Bloqueo descuento sobre suspensión ya cumplida', 'Caso de Falla', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Bloqueo descuento sobre suspensión ya cumplida', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- Rehabilitación y alineación exitosa en Partido 4 tras haber cumplido en Partido 3
     EXEC partido.sp_RegistrarAlineacion @id_formacion = @id_form_f4, @id_jugador = @jt_acum, @es_titular = 1;
 
     IF EXISTS (SELECT 1 FROM partido.Partido_Perdido_Suspension WHERE ID_Suspension = @id_susp_acum AND ID_Partido = @id_part_f3)
@@ -744,18 +791,6 @@ BEGIN TRY
         INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Descuento de fecha y rehabilitación en partido posterior', 'Caso de Éxito', 'OK', 'Fecha cumplida en Partido 3 y jugador habilitado en Partido 4.');
     ELSE
         INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Descuento de fecha y rehabilitación en partido posterior', 'Caso de Éxito', 'FALLÓ', 'No se descontó la fecha o no permitió alinear.');
-
-    -- 4.E. Error 50031: Bloqueo de intento de descontar fecha de una suspensión ya cumplida
-    BEGIN TRY
-        EXEC partido.sp_RegistrarCumplimientoSuspension @ID_Suspension = @id_susp_acum, @ID_Partido_Perdido = @id_part_f4;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Bloqueo descuento sobre suspensión ya cumplida', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50031');
-    END TRY
-    BEGIN CATCH
-        IF ERROR_NUMBER() = 50031
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Bloqueo descuento sobre suspensión ya cumplida', 'Validación THROW', 'OK', 'Capturado 50031: ' + ERROR_MESSAGE());
-        ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Bloqueo descuento sobre suspensión ya cumplida', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
-    END CATCH;
 
     -- 4.F. Expulsión por doble amarilla en el mismo partido
     EXEC partido.sp_RegistrarTarjetaYSuspension
@@ -833,73 +868,85 @@ BEGIN TRY
     -- 4.I. Error 50004: Destinatario inválido (ambos nulos o ambos informados)
     BEGIN TRY
         EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Jugador = @jt_acum, @ID_Cuerpo_Tecnico = @id_ct_loc, @Minuto = 40, @Motivo = 'Error', @Tipo = 'AMARILLA';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo destinatario simultáneo (Jugador y DT)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50004');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo destinatario simultáneo (Jugador y DT)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50004');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50004
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo destinatario simultáneo (Jugador y DT)', 'Validación THROW', 'OK', 'Capturado 50004: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo destinatario simultáneo (Jugador y DT)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo destinatario simultáneo (Jugador y DT)', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo destinatario simultáneo (Jugador y DT)', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.J. Error 50005: Partido inexistente en tarjeta
     BEGIN TRY
         EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = 999999, @ID_Jugador = @jt_acum, @Minuto = 40, @Motivo = 'Falta', @Tipo = 'AMARILLA';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50005');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50005');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50005
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo partido inexistente', 'Validación THROW', 'OK', 'Capturado 50005: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo partido inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.K. Error 50018: Minuto de tarjeta inválido
     BEGIN TRY
         EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Jugador = @jt_acum, @Minuto = 0, @Motivo = 'Falta', @Tipo = 'AMARILLA';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo minuto inválido (<= 0)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50018');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo minuto inválido (<= 0)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50018');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50018
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo minuto inválido (<= 0)', 'Validación THROW', 'OK', 'Capturado 50018: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo minuto inválido (<= 0)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo minuto inválido (<= 0)', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo minuto inválido (<= 0)', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.L. Error 50006: Tipo de tarjeta inválido
     BEGIN TRY
         EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Jugador = @jt_acum, @Minuto = 50, @Motivo = 'Falta', @Tipo = 'AZUL';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tipo de tarjeta inexistente (AZUL)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50006');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tipo de tarjeta inexistente (AZUL)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50006');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50006
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tipo de tarjeta inexistente (AZUL)', 'Validación THROW', 'OK', 'Capturado 50006: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tipo de tarjeta inexistente (AZUL)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tipo de tarjeta inexistente (AZUL)', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tipo de tarjeta inexistente (AZUL)', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.M. Error 50019: Jugador sancionado no está en la alineación del partido
     BEGIN TRY
         EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Jugador = @jt_no_alin, @Minuto = 50, @Motivo = 'Protesta', @Tipo = 'AMARILLA';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo jugador no alineado en el partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50019');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo jugador no alineado en el partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50019');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50019
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo jugador no alineado en el partido', 'Validación THROW', 'OK', 'Capturado 50019: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo jugador no alineado en el partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo jugador no alineado en el partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo jugador no alineado en el partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.N. Error 50007: Cuerpo técnico ajeno al partido
     BEGIN TRY
         EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Cuerpo_Tecnico = @id_ct_aje, @Minuto = 50, @Motivo = 'Protesta', @Tipo = 'AMARILLA';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo miembro cuerpo técnico ajeno al partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50007');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo miembro cuerpo técnico ajeno al partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50007');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50007
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo miembro cuerpo técnico ajeno al partido', 'Validación THROW', 'OK', 'Capturado 50007: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo miembro cuerpo técnico ajeno al partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo miembro cuerpo técnico ajeno al partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo miembro cuerpo técnico ajeno al partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 4.O. Caso de Falla Múltiple en sp_RegistrarTarjetaYSuspension (50004 + 50018 + 50006 simultáneos)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Jugador = NULL, @ID_Cuerpo_Tecnico = NULL, @Minuto = 150, @Motivo = 'Falta', @Tipo = 'VERDE';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Validación múltiple: sin destinatario + min>140 + tipo inválido', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50004, 50018 y 50006');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50004)%' AND ERROR_MESSAGE() LIKE '%(50018)%' AND ERROR_MESSAGE() LIKE '%(50006)%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Validación múltiple: sin destinatario + min>140 + tipo inválido', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Validación múltiple: sin destinatario + min>140 + tipo inválido', 'Caso de Falla Múltiple', 'FALLÓ', 'No acumuló todos: ' + ERROR_MESSAGE());
     END CATCH;
 
 END TRY
@@ -917,11 +964,11 @@ PRINT '======================================================================';
 
 SELECT 
     ID AS [#],
-    Procedimiento,
-    Escenario,
-    Tipo_Prueba,
-    Resultado,
-    Detalle
+    Procedimiento AS [SP Evaluado],
+    Escenario AS [Escenario de Prueba],
+    Tipo_Prueba AS [Tipo],
+    Resultado AS [Estado],
+    Detalle AS [Detalle / Mensaje]
 FROM @Reporte
 ORDER BY ID ASC;
 

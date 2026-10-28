@@ -124,9 +124,6 @@ END;
 GO
 
 ------------REGISTRO DE ASISTENCIA DE PÚBLICO AL ESTADIO----------------------------------------------
-DROP PROCEDURE IF EXISTS partido.sp_RegistrarResultadoYAsistencia;
-GO
-
 CREATE OR ALTER PROCEDURE partido.sp_RegistrarAsistenciaPublico
     @id_partido INT,
     @asistencia_publico INT
@@ -331,13 +328,14 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50022;
     END
 
-    -- validacion de suspensión vigente (jugador suspendido no puede jugar)
+    -- validacion de suspensión vigente (jugador suspendido no puede jugar en partidos posteriores al de la sanción)
     IF EXISTS (
         SELECT 1 FROM partido.Suspension SU
-        JOIN partido.Formacion_Partido FO 
-        ON FO.ID = @id_formacion
+        JOIN partido.Partido P_Origen ON P_Origen.ID = SU.ID_Partido
+        JOIN partido.Formacion_Partido FO ON FO.ID = @id_formacion
+        JOIN partido.Partido P_Actual ON P_Actual.ID = FO.ID_Partido
         WHERE SU.ID_Jugador = @id_jugador 
-          AND SU.ID_Partido < FO.ID_Partido
+          AND P_Actual.fecha_hora_local > P_Origen.fecha_hora_local
           AND SU.partidos_descontados < SU.partidos_totales
     )
     BEGIN
