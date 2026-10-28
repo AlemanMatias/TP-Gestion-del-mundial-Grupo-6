@@ -13,11 +13,11 @@
      - Villa, Brenda
      
    Script: 07_sp_publicidad.sql
-   Descripción: Módulo 4 - Gestión de Publicidad.
+   Descripción: Gestión de Publicidad.
                 Implementación de SP con ciclo ABM completo para el esquema 'publicidad':
-                Anunciantes, Campañas, Piezas de Contenido, Países de Interés (Pieza_Pais_Interes),
-                Espacios Publicitarios (4 paneles simultáneos por partido) y Algoritmo de Asignación
-                y Facturación de Exhibiciones Publicitarias (país participante, PBI per cápita, prime time).
+                Anunciantes, Campañas, Piezas de Contenido, Países de Interés,
+                Espacios Publicitarios y Algoritmo de Asignación
+                y Facturación de Exhibiciones Publicitarias.
 */
 
 USE Mundial2026;
@@ -26,19 +26,33 @@ GO
 -- =========================================================================================
 -- 1. ABM DE ESPACIOS PUBLICITARIOS POR PARTIDO (publicidad.Espacio_publicitario)
 -- =========================================================================================
+
+-- 1.1. GENERACIÓN AUTOMÁTICA DE LOS 4 ESPACIOS PUBLICITARIOS DE UN PARTIDO
+-- Crea los 4 paneles perimetrales (slots 1 a 4) asociados a un partido recién creado.
 CREATE OR ALTER PROCEDURE publicidad.sp_GenerarEspaciosPartido
     @id_partido INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    -- verifica si el partido existe
-    IF NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido)
-        THROW 50001, 'El partido indicado no existe.', 1;
+    -- Validar que el partido exista
+    IF @id_partido IS NULL OR NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido)
+    BEGIN
+        SET @mensaje_error += '(50001) El partido indicado no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50001;
+    END
 
-    -- verifica que el partido no tenga asignado espacios
+    -- Validar que el partido no tenga ya generados sus espacios publicitarios
     IF EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
-        THROW 50002, 'Los espacios publicitarios ya fueron generados previamente para este partido.', 1;
+    BEGIN
+        SET @mensaje_error += '(50002) Los espacios publicitarios ya fueron generados previamente para este partido. ';
+        IF @codigo_error = 0 SET @codigo_error = 50002;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
     
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -59,22 +73,36 @@ BEGIN
 END;
 GO
 
+-- 1.2. BAJA DE ESPACIOS PUBLICITARIOS DE UN PARTIDO
+-- Elimina los 4 paneles perimetrales de un partido siempre que no posean exhibiciones facturadas.
 CREATE OR ALTER PROCEDURE publicidad.sp_EliminarEspaciosPartido
     @id_partido INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    -- verifica que los espacios existan
+    -- Validar que existan espacios generados para ese partido
     IF NOT EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
-        THROW 50015, 'No existen espacios publicitarios generados para el partido indicado.', 1;
+    BEGIN
+        SET @mensaje_error += '(50015) No existen espacios publicitarios generados para el partido indicado. ';
+        IF @codigo_error = 0 SET @codigo_error = 50015;
+    END
 
+    -- Validar que los espacios no tengan exhibiciones facturadas activas
     IF EXISTS (
         SELECT 1 FROM publicidad.Exhibicion ex
         JOIN publicidad.Espacio_publicitario ep ON ep.ID = ex.ID_espacio
         WHERE ep.ID_Partido = @id_partido
     )
-        THROW 50016, 'No se pueden eliminar los espacios porque ya poseen exhibiciones facturadas.', 1;
+    BEGIN
+        SET @mensaje_error += '(50016) No se pueden eliminar los espacios porque ya poseen exhibiciones facturadas. ';
+        IF @codigo_error = 0 SET @codigo_error = 50016;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -92,6 +120,9 @@ GO
 -- =========================================================================================
 -- 2. ABM DE ANUNCIANTES (publicidad.Anunciante)
 -- =========================================================================================
+
+-- 2.1. ALTA / MODIFICACIÓN DE ANUNCIANTE
+-- Registra un nuevo anunciante (si @id es NULL) o actualiza su nombre (si @id viene informado), validando unicidad.
 CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarAnunciante
     @id INT = NULL,
     @nombre VARCHAR(100),
@@ -99,15 +130,33 @@ CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarAnunciante
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
+    -- Validar que el nombre no sea nulo ni vacío
     IF @nombre IS NULL OR LTRIM(RTRIM(@nombre)) = ''
-        THROW 50003, 'El nombre del anunciante no puede estar vacío.', 1;
+    BEGIN
+        SET @mensaje_error += '(50003) El nombre del anunciante no puede estar vacío. ';
+        IF @codigo_error = 0 SET @codigo_error = 50003;
+    END
 
+    -- Si se informa @id, validar que el anunciante a modificar exista
     IF @id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id)
-        THROW 50004, 'El anunciante que intenta modificar no existe.', 1;
+    BEGIN
+        SET @mensaje_error += '(50004) El anunciante que intenta modificar no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50004;
+    END
 
-    IF EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE nombre = LTRIM(RTRIM(@nombre)) AND (@id IS NULL OR ID <> @id))
-        THROW 50005, 'Ya existe un anunciante registrado con ese nombre.', 1;
+    -- Validar que no exista otro anunciante con el mismo nombre
+    IF @nombre IS NOT NULL AND LTRIM(RTRIM(@nombre)) <> ''
+       AND EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE nombre = LTRIM(RTRIM(@nombre)) AND (@id IS NULL OR ID <> @id))
+    BEGIN
+        SET @mensaje_error += '(50005) Ya existe un anunciante registrado con ese nombre. ';
+        IF @codigo_error = 0 SET @codigo_error = 50005;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -132,17 +181,32 @@ BEGIN
 END;
 GO
 
+-- 2.2. BAJA DE ANUNCIANTE
+-- Elimina un anunciante siempre que no posea campañas publicitarias asociadas.
 CREATE OR ALTER PROCEDURE publicidad.sp_EliminarAnunciante
     @id INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id)
-        THROW 50017, 'El anunciante que intenta eliminar no existe.', 1;
+    -- Validar existencia del anunciante
+    IF @id IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id)
+    BEGIN
+        SET @mensaje_error += '(50017) El anunciante que intenta eliminar no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50017;
+    END
 
+    -- Validar que no tenga campañas registradas
     IF EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID_Anunciante = @id)
-        THROW 50018, 'No se puede eliminar el anunciante porque posee campañas publicitarias asociadas.', 1;
+    BEGIN
+        SET @mensaje_error += '(50018) No se puede eliminar el anunciante porque posee campañas publicitarias asociadas. ';
+        IF @codigo_error = 0 SET @codigo_error = 50018;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -160,6 +224,9 @@ GO
 -- =========================================================================================
 -- 3. ABM DE CAMPAÑAS PUBLICITARIAS (publicidad.Campania)
 -- =========================================================================================
+
+-- 3.1. ALTA / MODIFICACIÓN DE CAMPAÑA PUBLICITARIA
+-- Crea o actualiza una campaña de un anunciante, validando rango de fechas de vigencia y existencia del anunciante.
 CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarCampania
     @id INT = NULL,
     @nombre VARCHAR(100),
@@ -170,18 +237,39 @@ CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarCampania
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
+    -- Validar nombre obligatorio
     IF @nombre IS NULL OR LTRIM(RTRIM(@nombre)) = ''
-        THROW 50019, 'El nombre de la campaña no puede estar vacío.', 1;
+    BEGIN
+        SET @mensaje_error += '(50019) El nombre de la campaña no puede estar vacío. ';
+        IF @codigo_error = 0 SET @codigo_error = 50019;
+    END
 
-    IF @fecha_inicio > @fecha_fin
-        THROW 50006, 'La fecha de inicio de la campaña no puede ser posterior a la fecha de fin.', 1;
+    -- Validar consistencia del rango de vigencia
+    IF @fecha_inicio IS NULL OR @fecha_fin IS NULL OR @fecha_inicio > @fecha_fin
+    BEGIN
+        SET @mensaje_error += '(50006) La fecha de inicio de la campaña no puede ser posterior a la fecha de fin. ';
+        IF @codigo_error = 0 SET @codigo_error = 50006;
+    END
     
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id_anunciante)
-        THROW 50007, 'El anunciante referenciado no existe en el sistema.', 1;
+    -- Validar que el anunciante exista
+    IF @id_anunciante IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Anunciante WHERE ID = @id_anunciante)
+    BEGIN
+        SET @mensaje_error += '(50007) El anunciante referenciado no existe en el sistema. ';
+        IF @codigo_error = 0 SET @codigo_error = 50007;
+    END
 
+    -- Si se informa @id, validar que la campaña a modificar exista
     IF @id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id)
-        THROW 50008, 'La campaña que intenta modificar no existe.', 1;
+    BEGIN
+        SET @mensaje_error += '(50008) La campaña que intenta modificar no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50008;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -212,17 +300,32 @@ BEGIN
 END;
 GO
 
+-- 3.2. BAJA DE CAMPAÑA PUBLICITARIA
+-- Elimina una campaña siempre que no tenga piezas de contenido asociadas.
 CREATE OR ALTER PROCEDURE publicidad.sp_EliminarCampania
     @id INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id)
-        THROW 50020, 'La campaña especificada no existe.', 1;
+    -- Validar que la campaña exista
+    IF @id IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id)
+    BEGIN
+        SET @mensaje_error += '(50020) La campaña especificada no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50020;
+    END
 
+    -- Validar que no posea piezas de contenido dependientes
     IF EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID_Campania = @id)
-        THROW 50021, 'No se puede eliminar la campaña porque posee piezas de contenido asociadas.', 1;
+    BEGIN
+        SET @mensaje_error += '(50021) No se puede eliminar la campaña porque posee piezas de contenido asociadas. ';
+        IF @codigo_error = 0 SET @codigo_error = 50021;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -240,6 +343,9 @@ GO
 -- =========================================================================================
 -- 4. ABM DE PIEZAS DE CONTENIDO (publicidad.Pieza_Contenido)
 -- =========================================================================================
+
+-- 4.1. ALTA / MODIFICACIÓN DE PIEZA DE CONTENIDO
+-- Crea o actualiza una pieza publicitaria (spot/banner) validando nombre, idioma, costo no negativo y campaña.
 CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarPiezaContenido
     @id INT = NULL,
     @nombre VARCHAR(100),
@@ -250,18 +356,39 @@ CREATE OR ALTER PROCEDURE publicidad.sp_RegistrarPiezaContenido
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
+    -- Validar nombre e idioma obligatorios
     IF @nombre IS NULL OR LTRIM(RTRIM(@nombre)) = '' OR @idioma IS NULL OR LTRIM(RTRIM(@idioma)) = ''
-        THROW 50022, 'El nombre y el idioma de la pieza publicitaria son obligatorios.', 1;
+    BEGIN
+        SET @mensaje_error += '(50022) El nombre y el idioma de la pieza publicitaria son obligatorios. ';
+        IF @codigo_error = 0 SET @codigo_error = 50022;
+    END
 
-    IF @costo < 0
-        THROW 50009, 'El costo de la pieza publicitaria no puede ser negativo.', 1;
+    -- Validar que el costo no sea nulo ni negativo
+    IF @costo IS NULL OR @costo < 0
+    BEGIN
+        SET @mensaje_error += '(50009) El costo de la pieza publicitaria no puede ser negativo. ';
+        IF @codigo_error = 0 SET @codigo_error = 50009;
+    END
 
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id_campania)
-        THROW 50010, 'La campaña referenciada no existe.', 1;
+    -- Validar existencia de la campaña asociada
+    IF @id_campania IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Campania WHERE ID = @id_campania)
+    BEGIN
+        SET @mensaje_error += '(50010) La campaña referenciada no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50010;
+    END
 
+    -- Si se informa @id, validar que la pieza a modificar exista
     IF @id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id)
-        THROW 50011, 'La pieza de contenido que intenta modificar no existe.', 1;
+    BEGIN
+        SET @mensaje_error += '(50011) La pieza de contenido que intenta modificar no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50011;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -292,17 +419,32 @@ BEGIN
 END;
 GO
 
+-- 4.2. BAJA DE PIEZA DE CONTENIDO
+-- Elimina una pieza de contenido y sus mercados de interés siempre que no posea exhibiciones facturadas.
 CREATE OR ALTER PROCEDURE publicidad.sp_EliminarPiezaContenido
     @id INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id)
-        THROW 50023, 'La pieza de contenido especificada no existe.', 1;
+    -- Validar existencia de la pieza
+    IF @id IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id)
+    BEGIN
+        SET @mensaje_error += '(50023) La pieza de contenido especificada no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50023;
+    END
 
+    -- Validar que la pieza no tenga exhibiciones facturadas en partidos
     IF EXISTS (SELECT 1 FROM publicidad.Exhibicion WHERE ID_Pieza = @id)
-        THROW 50024, 'No se puede eliminar la pieza de contenido porque registra exhibiciones facturadas en partidos.', 1;
+    BEGIN
+        SET @mensaje_error += '(50024) No se puede eliminar la pieza de contenido porque registra exhibiciones facturadas en partidos. ';
+        IF @codigo_error = 0 SET @codigo_error = 50024;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -321,45 +463,103 @@ GO
 -- =========================================================================================
 -- 5. ABM DE PAÍSES DE INTERÉS DE UNA PIEZA (publicidad.Pieza_Pais_Interes)
 -- =========================================================================================
-CREATE OR ALTER PROCEDURE publicidad.sp_GestionarPaisInteresPieza
+
+IF OBJECT_ID('publicidad.sp_GestionarPaisInteresPieza', 'P') IS NOT NULL
+    DROP PROCEDURE publicidad.sp_GestionarPaisInteresPieza;
+GO
+
+-- 5.1. ASOCIACIÓN DE PAÍS DE INTERÉS A UNA PIEZA PUBLICITARIA
+-- Vincula un país como mercado objetivo de una pieza de contenido para el cálculo de PBI y Prime Time.
+CREATE OR ALTER PROCEDURE publicidad.sp_InsertarPaisInteresPieza
     @id_pieza INT,
-    @id_pais INT,
-    @accion VARCHAR(10) = 'INSERTAR' -- 'INSERTAR' o 'ELIMINAR'
+    @id_pais INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id_pieza)
-        THROW 50025, 'La pieza de contenido indicada no existe.', 1;
+    -- Validar existencia de la pieza de contenido
+    IF @id_pieza IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id_pieza)
+    BEGIN
+        SET @mensaje_error += '(50025) La pieza de contenido indicada no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50025;
+    END
 
-    IF NOT EXISTS (SELECT 1 FROM administracion.Pais WHERE ID = @id_pais)
-        THROW 50026, 'El país de interés indicado no existe.', 1;
+    -- Validar existencia del país de interés
+    IF @id_pais IS NULL OR NOT EXISTS (SELECT 1 FROM administracion.Pais WHERE ID = @id_pais)
+    BEGIN
+        SET @mensaje_error += '(50026) El país de interés indicado no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50026;
+    END
 
-    IF @accion NOT IN ('INSERTAR', 'ELIMINAR')
-        THROW 50027, 'La acción debe ser INSERTAR o ELIMINAR.', 1;
+    -- Validar que el país no esté ya vinculado a esa misma pieza
+    IF @id_pieza IS NOT NULL AND @id_pais IS NOT NULL
+       AND EXISTS (SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais)
+    BEGIN
+        SET @mensaje_error += '(50028) El país indicado ya se encuentra asociado como mercado de interés para esta pieza. ';
+        IF @codigo_error = 0 SET @codigo_error = 50028;
+    END
 
-    IF @accion = 'INSERTAR' AND EXISTS (
-        SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais
-    )
-        THROW 50028, 'El país indicado ya se encuentra asociado como mercado de interés para esta pieza.', 1;
-
-    IF @accion = 'ELIMINAR' AND NOT EXISTS (
-        SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais
-    )
-        THROW 50028, 'El país indicado no se encuentra asociado a esta pieza.', 1;
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
-        IF @accion = 'INSERTAR'
-        BEGIN
-            INSERT INTO publicidad.Pieza_Pais_Interes (ID_Pieza, ID_Pais)
-            VALUES (@id_pieza, @id_pais);
-        END
-        ELSE IF @accion = 'ELIMINAR'
-        BEGIN
-            DELETE FROM publicidad.Pieza_Pais_Interes
-            WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais;
-        END
+        INSERT INTO publicidad.Pieza_Pais_Interes (ID_Pieza, ID_Pais)
+        VALUES (@id_pieza, @id_pais);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- 5.2. BAJA DE PAÍS DE INTERÉS DE UNA PIEZA PUBLICITARIA
+-- Desvincula un país de interés previamente asociado a una pieza de contenido.
+CREATE OR ALTER PROCEDURE publicidad.sp_EliminarPaisInteresPieza
+    @id_pieza INT,
+    @id_pais INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
+
+    -- Validar existencia de la pieza de contenido
+    IF @id_pieza IS NULL OR NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id_pieza)
+    BEGIN
+        SET @mensaje_error += '(50025) La pieza de contenido indicada no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50025;
+    END
+
+    -- Validar existencia del país
+    IF @id_pais IS NULL OR NOT EXISTS (SELECT 1 FROM administracion.Pais WHERE ID = @id_pais)
+    BEGIN
+        SET @mensaje_error += '(50026) El país de interés indicado no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50026;
+    END
+
+    -- Validar que exista el vínculo entre la pieza y el país antes de borrarlo
+    IF @id_pieza IS NOT NULL AND EXISTS (SELECT 1 FROM publicidad.Pieza_Contenido WHERE ID = @id_pieza)
+       AND @id_pais IS NOT NULL AND EXISTS (SELECT 1 FROM administracion.Pais WHERE ID = @id_pais)
+       AND NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais)
+    BEGIN
+        SET @mensaje_error += '(50028) El país indicado no se encuentra asociado a esta pieza. ';
+        IF @codigo_error = 0 SET @codigo_error = 50028;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM publicidad.Pieza_Pais_Interes
+        WHERE ID_Pieza = @id_pieza AND ID_Pais = @id_pais;
 
         COMMIT TRANSACTION;
     END TRY
@@ -376,31 +576,50 @@ GO
 -- =========================================================================================
 
 /*
+    6.1. ALGORITMO DE ASIGNACIÓN Y FACTURACIÓN DE PUBLICIDAD POR PARTIDO
     Paso 1) El SP recibe el @id_partido, valida que existan sus 4 espacios publicitarios disponibles y toma los datos del partido (fecha_hora_local, fecha_hora_utc y los países de la selección local y visitante).
     Paso 2) Conversión de huso horario para cada mercado objetivo: según los países asociados a cada pieza en la tabla Pieza_Pais_Interes, convierte la hora UTC del partido al huso horario de cada país destino para determinar si cae en horario Prime Time (19:00 a 23:59 hs).
     Paso 3) Filtro de vigencia y evaluación de candidatas: entran como candidatas todas las piezas cuya campaña esté vigente en la fecha del partido (fecha_inicio <= fecha_partido <= fecha_fin), evaluando para cada una: si su país juega el partido, su PBI per cápita, si está en Prime Time y el costo de la pieza.
     Paso 4) Se establece un ranking (TOP 4) de las piezas más rentables/prioritarias ordenando por: 1° País participante en el partido, 2° Mayor PBI per cápita del mercado, 3° Horario Prime Time en el país destino y 4° Mayor costo de la pieza.
     Paso 5) Se asignan las 4 piezas ganadoras a los 4 espacios publicitarios del partido en la tabla Exhibicion, registrando el orden de prioridad (1, 2 o 3) y el monto facturado.
 */
-
 CREATE OR ALTER PROCEDURE publicidad.sp_AsignarPublicidadPartido
     @id_partido INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
-    IF NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido)
-        THROW 50012, 'El partido indicado no existe.', 1;
+    -- Validar que el partido exista
+    IF @id_partido IS NULL OR NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido)
+    BEGIN
+        SET @mensaje_error += '(50012) El partido indicado no existe. ';
+        IF @codigo_error = 0 SET @codigo_error = 50012;
+    END
+    ELSE
+    BEGIN
+        -- Validar que el partido tenga generados sus 4 espacios publicitarios
+        IF NOT EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
+        BEGIN
+            SET @mensaje_error += '(50013) Aún no se han generado los espacios (slots) para este partido. ';
+            IF @codigo_error = 0 SET @codigo_error = 50013;
+        END
 
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Espacio_publicitario WHERE ID_Partido = @id_partido)
-        THROW 50013, 'Aún no se han generado los espacios (slots) para este partido.', 1;
+        -- Validar que el partido no tenga ya pauta publicitaria asignada
+        IF EXISTS (
+            SELECT 1 FROM publicidad.Exhibicion ex 
+            JOIN publicidad.Espacio_publicitario ep ON ex.ID_espacio = ep.ID 
+            WHERE ep.ID_Partido = @id_partido
+        )
+        BEGIN
+            SET @mensaje_error += '(50014) La publicidad de este partido ya fue asignada previamente. ';
+            IF @codigo_error = 0 SET @codigo_error = 50014;
+        END
+    END
 
-    IF EXISTS (
-        SELECT 1 FROM publicidad.Exhibicion ex 
-        JOIN publicidad.Espacio_publicitario ep ON ex.ID_espacio = ep.ID 
-        WHERE ep.ID_Partido = @id_partido
-    )
-        THROW 50014, 'La publicidad de este partido ya fue asignada previamente.', 1;
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -413,7 +632,7 @@ BEGIN
             es_prime_time INT
         );
 
-        -- Se insertan en la tabla temporal 
+        -- Se insertan en la tabla temporal las piezas de campañas vigentes evaluadas por cada país de interés
         INSERT INTO @Puntajes (ID_Pieza, costo, es_pais_participante, pbi_percapita, es_prime_time)
         SELECT 
             pc.ID,
@@ -457,7 +676,7 @@ BEGIN
             MAX(es_prime_time) DESC, 
             MAX(costo) DESC;
 
-        -- Insertar en la tabla de exhibición
+        -- Insertar en la tabla de exhibición asociando cada pieza del Top 4 a un panel del partido
         INSERT INTO publicidad.Exhibicion (ID_espacio, ID_Pieza, orden_prioridad, monto_facturado)
         SELECT 
             ep.ID,
@@ -481,18 +700,29 @@ BEGIN
 END;
 GO
 
+-- 6.2. BAJA DE EXHIBICIONES PUBLICITARIAS DE UN PARTIDO
+-- Libera la pauta publicitaria facturada en los espacios de un partido determinado.
 CREATE OR ALTER PROCEDURE publicidad.sp_EliminarExhibicionPartido
     @id_partido INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error INT = 0;
 
+    -- Validar que el partido posea exhibiciones asignadas
     IF NOT EXISTS (
         SELECT 1 FROM publicidad.Exhibicion ex
         JOIN publicidad.Espacio_publicitario ep ON ep.ID = ex.ID_espacio
         WHERE ep.ID_Partido = @id_partido
     )
-        THROW 50029, 'No existen exhibiciones publicitarias asignadas para este partido.', 1;
+    BEGIN
+        SET @mensaje_error += '(50029) No existen exhibiciones publicitarias asignadas para este partido. ';
+        IF @codigo_error = 0 SET @codigo_error = 50029;
+    END
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
 
     BEGIN TRANSACTION;
     BEGIN TRY

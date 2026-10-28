@@ -14,10 +14,10 @@
      
    Script: test_07_publicidad.sql
    Descripción: Lote de pruebas unitarias para los Stored Procedures de 07_sp_publicidad.sql.
-                - Anunciantes (alta, modificación, baja y validaciones).
-                - Campañas publicitarias (alta, modificación, baja, vigencia y validaciones).
-                - Piezas de contenido y Países de interés (alta, modificación, baja y validaciones).
-                - Espacios publicitarios (4 paneles simultáneos por partido) y Algoritmo de Priorización
+                - Anunciantes.
+                - Campañas publicitarias.
+                - Piezas de contenido y Países de interés.
+                - Espacios publicitarios y Algoritmo de Priorización
                   de Exhibición Publicitaria
 */
 
@@ -30,10 +30,10 @@ SET NOCOUNT ON;
 DECLARE @Reporte TABLE (
     ID INT IDENTITY(1,1),
     Procedimiento VARCHAR(50),
-    Escenario VARCHAR(65),
-    Tipo_Prueba VARCHAR(25),
+    Escenario VARCHAR(80),
+    Tipo_Prueba VARCHAR(30),
     Resultado VARCHAR(10),
-    Detalle VARCHAR(255)
+    Detalle VARCHAR(500)
 );
 
 PRINT '======================================================================';
@@ -65,37 +65,37 @@ BEGIN TRY
     -- 1.C. Error 50003: Nombre de anunciante vacío
     BEGIN TRY
         EXEC publicidad.sp_RegistrarAnunciante @nombre = '   ';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante vacío', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50003');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante vacío', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50003');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50003
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante vacío', 'Validación THROW', 'OK', 'Capturado 50003: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante vacío', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante vacío', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante vacío', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.D. Error 50005: Anunciante duplicado
     BEGIN TRY
         EXEC publicidad.sp_RegistrarAnunciante @nombre = 'Adidas Global 2026';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante duplicado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50005');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante duplicado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50005');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50005
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante duplicado', 'Validación THROW', 'OK', 'Capturado 50005: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante duplicado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante duplicado', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo nombre de anunciante duplicado', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.E. Error 50004: Modificación de anunciante inexistente
     BEGIN TRY
         EXEC publicidad.sp_RegistrarAnunciante @id = 999999, @nombre = 'Inexistente';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo modificación anunciante inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50004');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo modificación anunciante inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50004');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50004
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo modificación anunciante inexistente', 'Validación THROW', 'OK', 'Capturado 50004: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo modificación anunciante inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo modificación anunciante inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Bloqueo modificación anunciante inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.F. Baja exitosa de anunciante sin campañas
@@ -108,13 +108,25 @@ BEGIN TRY
     -- 1.G. Error 50017: Baja de anunciante inexistente
     BEGIN TRY
         EXEC publicidad.sp_EliminarAnunciante @id = @id_anun1;
-        INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja de anunciante inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50017');
+        INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja de anunciante inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50017');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50017
-            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja de anunciante inexistente', 'Validación THROW', 'OK', 'Capturado 50017: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja de anunciante inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja de anunciante inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja de anunciante inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 1.H. Validación múltiple en sp_RegistrarAnunciante: Nombre vacío + ID inexistente
+    BEGIN TRY
+        EXEC publicidad.sp_RegistrarAnunciante @id = 999999, @nombre = '   ';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Validación múltiple: nombre vacío + ID inexistente', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50003 y 50004');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50003 AND ERROR_MESSAGE() LIKE '%50004%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Validación múltiple: nombre vacío + ID inexistente', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAnunciante', 'Validación múltiple: nombre vacío + ID inexistente', 'Caso de Falla Múltiple', 'FALLÓ', 'Mensaje incompleto: ' + ERROR_MESSAGE());
     END CATCH;
 
 END TRY
@@ -160,61 +172,61 @@ BEGIN TRY
     -- 2.C. Error 50019: Nombre de campaña vacío
     BEGIN TRY
         EXEC publicidad.sp_RegistrarCampania @nombre = '', @fecha_inicio = '2026-06-01', @fecha_fin = '2026-07-01', @id_anunciante = @id_anun_c;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo nombre de campaña vacío', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50019');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo nombre de campaña vacío', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50019');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50019
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo nombre de campaña vacío', 'Validación THROW', 'OK', 'Capturado 50019: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo nombre de campaña vacío', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo nombre de campaña vacío', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo nombre de campaña vacío', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.D. Error 50006: Fechas de campaña invertidas (inicio > fin)
     BEGIN TRY
         EXEC publicidad.sp_RegistrarCampania @nombre = 'Campaña Inválida', @fecha_inicio = '2026-08-01', @fecha_fin = '2026-06-01', @id_anunciante = @id_anun_c;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo fecha inicio mayor a fecha fin', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50006');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo fecha inicio mayor a fecha fin', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50006');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50006
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo fecha inicio mayor a fecha fin', 'Validación THROW', 'OK', 'Capturado 50006: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo fecha inicio mayor a fecha fin', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo fecha inicio mayor a fecha fin', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo fecha inicio mayor a fecha fin', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.E. Error 50007: Anunciante inexistente
     BEGIN TRY
         EXEC publicidad.sp_RegistrarCampania @nombre = 'Campaña Sin Anunciante', @fecha_inicio = '2026-06-01', @fecha_fin = '2026-07-01', @id_anunciante = 999999;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo anunciante inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50007');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo anunciante inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50007');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50007
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo anunciante inexistente', 'Validación THROW', 'OK', 'Capturado 50007: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo anunciante inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo anunciante inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo anunciante inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.F. Error 50008: Modificación de campaña inexistente
     BEGIN TRY
         EXEC publicidad.sp_RegistrarCampania @id = 999999, @nombre = 'Campaña Fantasma', @fecha_inicio = '2026-06-01', @fecha_fin = '2026-07-01', @id_anunciante = @id_anun_c;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo modificación campaña inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50008');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo modificación campaña inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50008');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50008
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo modificación campaña inexistente', 'Validación THROW', 'OK', 'Capturado 50008: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo modificación campaña inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo modificación campaña inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Bloqueo modificación campaña inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.G. Error 50018: Bloqueo baja de anunciante con campañas asociadas
     BEGIN TRY
         EXEC publicidad.sp_EliminarAnunciante @id = @id_anun_c;
-        INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja anunciante con campañas', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50018');
+        INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja anunciante con campañas', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50018');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50018
-            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja anunciante con campañas', 'Validación THROW', 'OK', 'Capturado 50018: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja anunciante con campañas', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja anunciante con campañas', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarAnunciante', 'Bloqueo baja anunciante con campañas', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.H. Baja exitosa de campaña
@@ -227,13 +239,25 @@ BEGIN TRY
     -- 2.I. Error 50020: Baja de campaña inexistente
     BEGIN TRY
         EXEC publicidad.sp_EliminarCampania @id = @id_camp1;
-        INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja de campaña inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50020');
+        INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja de campaña inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50020');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50020
-            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja de campaña inexistente', 'Validación THROW', 'OK', 'Capturado 50020: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja de campaña inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja de campaña inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja de campaña inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 2.J. Validación múltiple en sp_RegistrarCampania: Nombre vacío + fechas invertidas + anunciante inexistente
+    BEGIN TRY
+        EXEC publicidad.sp_RegistrarCampania @nombre = '', @fecha_inicio = '2026-08-01', @fecha_fin = '2026-06-01', @id_anunciante = 999999;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Validación múltiple: nombre vacío + fechas + anunciante', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50019, 50006 y 50007');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50019 AND ERROR_MESSAGE() LIKE '%50006%' AND ERROR_MESSAGE() LIKE '%50007%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Validación múltiple: nombre vacío + fechas + anunciante', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarCampania', 'Validación múltiple: nombre vacío + fechas + anunciante', 'Caso de Falla Múltiple', 'FALLÓ', 'Mensaje incompleto: ' + ERROR_MESSAGE());
     END CATCH;
 
 END TRY
@@ -281,124 +305,124 @@ BEGIN TRY
     -- 3.C. Error 50022: Nombre o idioma vacío en pieza
     BEGIN TRY
         EXEC publicidad.sp_RegistrarPiezaContenido @nombre = '', @idioma = 'Español', @costo = 1000, @id_campania = @id_camp_p;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo nombre o idioma vacío', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50022');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo nombre o idioma vacío', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50022');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50022
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo nombre o idioma vacío', 'Validación THROW', 'OK', 'Capturado 50022: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo nombre o idioma vacío', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo nombre o idioma vacío', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo nombre o idioma vacío', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.D. Error 50009: Costo negativo
     BEGIN TRY
         EXEC publicidad.sp_RegistrarPiezaContenido @nombre = 'Spot Negativo', @idioma = 'Inglés', @costo = -500, @id_campania = @id_camp_p;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo costo negativo en pieza', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50009');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo costo negativo en pieza', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50009');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50009
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo costo negativo en pieza', 'Validación THROW', 'OK', 'Capturado 50009: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo costo negativo en pieza', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo costo negativo en pieza', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo costo negativo en pieza', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.E. Error 50010: Campaña inexistente
     BEGIN TRY
         EXEC publicidad.sp_RegistrarPiezaContenido @nombre = 'Spot Huérfano', @idioma = 'Inglés', @costo = 5000, @id_campania = 999999;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo campaña inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50010');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo campaña inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50010');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50010
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo campaña inexistente', 'Validación THROW', 'OK', 'Capturado 50010: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo campaña inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo campaña inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo campaña inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.F. Error 50011: Modificar pieza inexistente
     BEGIN TRY
         EXEC publicidad.sp_RegistrarPiezaContenido @id = 999999, @nombre = 'Spot Fantasma', @idioma = 'Inglés', @costo = 5000, @id_campania = @id_camp_p;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo modificación pieza inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50011');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo modificación pieza inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50011');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50011
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo modificación pieza inexistente', 'Validación THROW', 'OK', 'Capturado 50011: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo modificación pieza inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo modificación pieza inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Bloqueo modificación pieza inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.G. Error 50021: Bloqueo baja de campaña con piezas asociadas
     BEGIN TRY
         EXEC publicidad.sp_EliminarCampania @id = @id_camp_p;
-        INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja campaña con piezas activas', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50021');
+        INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja campaña con piezas activas', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50021');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50021
-            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja campaña con piezas activas', 'Validación THROW', 'OK', 'Capturado 50021: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja campaña con piezas activas', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja campaña con piezas activas', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarCampania', 'Bloqueo baja campaña con piezas activas', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.H. Alta exitosa de país de interés para la pieza
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi, @accion = 'INSERTAR';
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi;
     IF EXISTS (SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza1 AND ID_Pais = @id_pais_pi)
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Asociación exitosa de país de interés', 'Caso de Éxito', 'OK', 'País vinculado a la pieza publicitaria.');
+        INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Asociación exitosa de país de interés', 'Caso de Éxito', 'OK', 'País vinculado a la pieza publicitaria.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Asociación exitosa de país de interés', 'Caso de Éxito', 'FALLÓ', 'No se vinculó el país a la pieza.');
+        INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Asociación exitosa de país de interés', 'Caso de Éxito', 'FALLÓ', 'No se vinculó el país a la pieza.');
 
     -- 3.I. Error 50028: País de interés duplicado para la misma pieza
     BEGIN TRY
-        EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi, @accion = 'INSERTAR';
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo país de interés duplicado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50028');
+        EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi;
+        INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo país de interés duplicado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50028');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50028
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo país de interés duplicado', 'Validación THROW', 'OK', 'Capturado 50028: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo país de interés duplicado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo país de interés duplicado', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo país de interés duplicado', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.J. Error 50025: Pieza inexistente al asociar país
     BEGIN TRY
-        EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = 999999, @id_pais = @id_pais_pi, @accion = 'INSERTAR';
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo pieza inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50025');
+        EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = 999999, @id_pais = @id_pais_pi;
+        INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo pieza inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50025');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50025
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo pieza inexistente', 'Validación THROW', 'OK', 'Capturado 50025: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo pieza inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo pieza inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo pieza inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.K. Error 50026: País inexistente al asociar a pieza
     BEGIN TRY
-        EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = 999999, @accion = 'INSERTAR';
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo país inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50026');
+        EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = 999999;
+        INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo país inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50026');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50026
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo país inexistente', 'Validación THROW', 'OK', 'Capturado 50026: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo país inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo país inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Bloqueo país inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 3.L. Error 50027: Acción inválida en país de interés
+    -- 3.L. Baja exitosa de país de interés
+    EXEC publicidad.sp_EliminarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi;
+    IF NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza1 AND ID_Pais = @id_pais_pi)
+        INSERT INTO @Reporte VALUES ('sp_EliminarPaisInteresPieza', 'Baja exitosa de país de interés', 'Caso de Éxito', 'OK', 'País desvinculado correctamente.');
+    ELSE
+        INSERT INTO @Reporte VALUES ('sp_EliminarPaisInteresPieza', 'Baja exitosa de país de interés', 'Caso de Éxito', 'FALLÓ', 'El país sigue vinculado.');
+
+    -- 3.M. Error 50028: Baja de país de interés no asociado a la pieza
     BEGIN TRY
-        EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi, @accion = 'REEMPLAZAR';
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo acción inválida', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50027');
+        EXEC publicidad.sp_EliminarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi;
+        INSERT INTO @Reporte VALUES ('sp_EliminarPaisInteresPieza', 'Bloqueo baja país de interés no asociado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50028');
     END TRY
     BEGIN CATCH
-        IF ERROR_NUMBER() = 50027
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo acción inválida', 'Validación THROW', 'OK', 'Capturado 50027: ' + ERROR_MESSAGE());
+        IF ERROR_NUMBER() = 50028
+            INSERT INTO @Reporte VALUES ('sp_EliminarPaisInteresPieza', 'Bloqueo baja país de interés no asociado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Bloqueo acción inválida', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarPaisInteresPieza', 'Bloqueo baja país de interés no asociado', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
-
-    -- 3.M. Baja exitosa de país de interés
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @id_pieza1, @id_pais = @id_pais_pi, @accion = 'ELIMINAR';
-    IF NOT EXISTS (SELECT 1 FROM publicidad.Pieza_Pais_Interes WHERE ID_Pieza = @id_pieza1 AND ID_Pais = @id_pais_pi)
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Baja exitosa de país de interés', 'Caso de Éxito', 'OK', 'País desvinculado correctamente.');
-    ELSE
-        INSERT INTO @Reporte VALUES ('sp_GestionarPaisInteresPieza', 'Baja exitosa de país de interés', 'Caso de Éxito', 'FALLÓ', 'El país sigue vinculado.');
 
     -- 3.N. Baja exitosa de pieza de contenido
     EXEC publicidad.sp_EliminarPiezaContenido @id = @id_pieza1;
@@ -410,13 +434,37 @@ BEGIN TRY
     -- 3.O. Error 50023: Baja de pieza inexistente
     BEGIN TRY
         EXEC publicidad.sp_EliminarPiezaContenido @id = @id_pieza1;
-        INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50023');
+        INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50023');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50023
-            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza inexistente', 'Validación THROW', 'OK', 'Capturado 50023: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 3.P. Validación múltiple en sp_RegistrarPiezaContenido: Nombre vacío + costo negativo + campaña inexistente
+    BEGIN TRY
+        EXEC publicidad.sp_RegistrarPiezaContenido @nombre = '', @idioma = '', @costo = -100, @id_campania = 999999;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Validación múltiple: nombre vacío + costo<0 + campaña', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50022, 50009 y 50010');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50022 AND ERROR_MESSAGE() LIKE '%50009%' AND ERROR_MESSAGE() LIKE '%50010%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Validación múltiple: nombre vacío + costo<0 + campaña', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarPiezaContenido', 'Validación múltiple: nombre vacío + costo<0 + campaña', 'Caso de Falla Múltiple', 'FALLÓ', 'Mensaje incompleto: ' + ERROR_MESSAGE());
+    END CATCH;
+
+    -- 3.Q. Validación múltiple en sp_InsertarPaisInteresPieza: Pieza inexistente + país inexistente
+    BEGIN TRY
+        EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = 999999, @id_pais = 999999;
+        INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Validación múltiple: pieza y país inexistentes', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50025 y 50026');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50025 AND ERROR_MESSAGE() LIKE '%50026%'
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Validación múltiple: pieza y país inexistentes', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_InsertarPaisInteresPieza', 'Validación múltiple: pieza y país inexistentes', 'Caso de Falla Múltiple', 'FALLÓ', 'Mensaje incompleto: ' + ERROR_MESSAGE());
     END CATCH;
 
 END TRY
@@ -467,25 +515,25 @@ BEGIN TRY
     -- 4.A. Error 50002: Bloqueo de regeneración duplicada de espacios para el mismo partido
     BEGIN TRY
         EXEC publicidad.sp_GenerarEspaciosPartido @id_partido = @id_part_pub;
-        INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo espacios duplicados en partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50002');
+        INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo espacios duplicados en partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50002');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50002
-            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo espacios duplicados en partido', 'Validación THROW', 'OK', 'Capturado 50002: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo espacios duplicados en partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo espacios duplicados en partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo espacios duplicados en partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.B. Error 50001: Generar espacios en partido inexistente
     BEGIN TRY
         EXEC publicidad.sp_GenerarEspaciosPartido @id_partido = 999999;
-        INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50001');
+        INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50001');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50001
-            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo partido inexistente', 'Validación THROW', 'OK', 'Capturado 50001: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo partido inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_GenerarEspaciosPartido', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- Creamos anunciante, campaña vigente y las 6 piezas candidatas en Prime Time
@@ -501,12 +549,12 @@ BEGIN TRY
     EXEC publicidad.sp_RegistrarPiezaContenido @nombre = 'Pieza 5 - Mercado Medio C', @idioma = 'Alemán', @costo = 15000, @id_campania = @id_camp_prime, @id_generado = @pz5 OUTPUT;
     EXEC publicidad.sp_RegistrarPiezaContenido @nombre = 'Pieza 6 - Mercado Bajo D', @idioma = 'Italiano', @costo = 8000, @id_campania = @id_camp_prime, @id_generado = @pz6 OUTPUT;
 
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @pz1, @id_pais = @p_loc, @accion = 'INSERTAR';
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @pz2, @id_pais = @p_vis, @accion = 'INSERTAR';
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @pz3, @id_pais = @p_ricoA, @accion = 'INSERTAR';
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @pz4, @id_pais = @p_ricoB, @accion = 'INSERTAR';
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @pz5, @id_pais = @p_medC, @accion = 'INSERTAR';
-    EXEC publicidad.sp_GestionarPaisInteresPieza @id_pieza = @pz6, @id_pais = @p_bajoD, @accion = 'INSERTAR';
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @pz1, @id_pais = @p_loc;
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @pz2, @id_pais = @p_vis;
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @pz3, @id_pais = @p_ricoA;
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @pz4, @id_pais = @p_ricoB;
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @pz5, @id_pais = @p_medC;
+    EXEC publicidad.sp_InsertarPaisInteresPieza @id_pieza = @pz6, @id_pais = @p_bajoD;
 
     -- 4.C. Ejecución de sp_AsignarPublicidadPartido con 6 candidatos simultáneos en Prime Time
     EXEC publicidad.sp_AsignarPublicidadPartido @id_partido = @id_part_pub;
@@ -528,44 +576,44 @@ BEGIN TRY
     WHERE ep.ID_Partido = @id_part_pub AND ex.ID_Pieza IN (@pz5, @pz6);
 
     IF @cant_asignadas = 4 AND @entraron_top4 = 4 AND @entraron_descartadas = 0
-        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Priorización exitosa entre 6 mercados en Prime Time', 'Caso Obligatorio TP', 'OK', 'Eligió exactamente las 4 piezas prioritarias y descartó las 2 restantes.');
+        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Priorización exitosa entre 6 mercados en Prime Time', 'Caso de Éxito', 'OK', 'Eligió exactamente las 4 piezas prioritarias y descartó las 2 restantes.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Priorización exitosa entre 6 mercados en Prime Time', 'Caso Obligatorio TP', 'FALLÓ', 'No seleccionó las 4 piezas esperadas.');
+        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Priorización exitosa entre 6 mercados en Prime Time', 'Caso de Éxito', 'FALLÓ', 'No seleccionó las 4 piezas esperadas.');
 
     -- 4.D. Error 50014: Bloqueo de doble asignación publicitaria para el mismo partido
     BEGIN TRY
         EXEC publicidad.sp_AsignarPublicidadPartido @id_partido = @id_part_pub;
-        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo publicidad ya asignada en el partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50014');
+        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo publicidad ya asignada en el partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50014');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50014
-            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo publicidad ya asignada en el partido', 'Validación THROW', 'OK', 'Capturado 50014: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo publicidad ya asignada en el partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo publicidad ya asignada en el partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo publicidad ya asignada en el partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.E. Error 50024: Bloqueo baja de pieza que ya registra exhibiciones facturadas
     BEGIN TRY
         EXEC publicidad.sp_EliminarPiezaContenido @id = @pz1;
-        INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza con exhibición facturada', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50024');
+        INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza con exhibición facturada', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50024');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50024
-            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza con exhibición facturada', 'Validación THROW', 'OK', 'Capturado 50024: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza con exhibición facturada', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza con exhibición facturada', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarPiezaContenido', 'Bloqueo baja pieza con exhibición facturada', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.F. Error 50016: Bloqueo baja de espacios publicitarios con exhibición activa
     BEGIN TRY
         EXEC publicidad.sp_EliminarEspaciosPartido @id_partido = @id_part_pub;
-        INSERT INTO @Reporte VALUES ('sp_EliminarEspaciosPartido', 'Bloqueo baja espacios con exhibiciones activas', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50016');
+        INSERT INTO @Reporte VALUES ('sp_EliminarEspaciosPartido', 'Bloqueo baja espacios con exhibiciones activas', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50016');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50016
-            INSERT INTO @Reporte VALUES ('sp_EliminarEspaciosPartido', 'Bloqueo baja espacios con exhibiciones activas', 'Validación THROW', 'OK', 'Capturado 50016: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarEspaciosPartido', 'Bloqueo baja espacios con exhibiciones activas', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarEspaciosPartido', 'Bloqueo baja espacios con exhibiciones activas', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarEspaciosPartido', 'Bloqueo baja espacios con exhibiciones activas', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.G. Baja exitosa de exhibiciones del partido (sp_EliminarExhibicionPartido)
@@ -582,13 +630,13 @@ BEGIN TRY
     -- 4.H. Error 50029: Baja de exhibiciones en partido sin pauta asignada
     BEGIN TRY
         EXEC publicidad.sp_EliminarExhibicionPartido @id_partido = @id_part_pub;
-        INSERT INTO @Reporte VALUES ('sp_EliminarExhibicionPartido', 'Bloqueo baja exhibiciones inexistentes', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50029');
+        INSERT INTO @Reporte VALUES ('sp_EliminarExhibicionPartido', 'Bloqueo baja exhibiciones inexistentes', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50029');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50029
-            INSERT INTO @Reporte VALUES ('sp_EliminarExhibicionPartido', 'Bloqueo baja exhibiciones inexistentes', 'Validación THROW', 'OK', 'Capturado 50029: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarExhibicionPartido', 'Bloqueo baja exhibiciones inexistentes', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarExhibicionPartido', 'Bloqueo baja exhibiciones inexistentes', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarExhibicionPartido', 'Bloqueo baja exhibiciones inexistentes', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.I. Baja exitosa de espacios publicitarios tras liberar exhibiciones
@@ -601,13 +649,13 @@ BEGIN TRY
     -- 4.J. Error 50013: Bloqueo de asignación publicitaria en partido sin espacios generados
     BEGIN TRY
         EXEC publicidad.sp_AsignarPublicidadPartido @id_partido = @id_part_pub;
-        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo asignación en partido sin espacios', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50013');
+        INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo asignación en partido sin espacios', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50013');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50013
-            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo asignación en partido sin espacios', 'Validación THROW', 'OK', 'Capturado 50013: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo asignación en partido sin espacios', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo asignación en partido sin espacios', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_AsignarPublicidadPartido', 'Bloqueo asignación en partido sin espacios', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.K. Regeneración exitosa de los 4 espacios publicitarios del partido
@@ -632,10 +680,10 @@ PRINT '======================================================================';
 
 SELECT 
     ID AS [#],
-    Procedimiento,
-    Escenario,
-    Tipo_Prueba,
-    Resultado,
-    Detalle
+    Procedimiento AS [SP Evaluado],
+    Escenario AS [Escenario de Prueba],
+    Tipo_Prueba AS [Tipo],
+    Resultado AS [Estado],
+    Detalle AS [Detalle / Mensaje]
 FROM @Reporte
 ORDER BY ID ASC;
