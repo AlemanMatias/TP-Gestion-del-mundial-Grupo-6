@@ -13,13 +13,13 @@
      - Villa, Brenda
      
    Script: test_05_partidos_y_cambios.sql
-   Descripción: Lote de pruebas unitarias exhaustivas para los Stored Procedures de 05_sp_partidos_y_cambios.sql.
+   Descripción: 
                 Valida:
                 - Creación de partidos con cálculo UTC y espacios publicitarios.
                 - Registro de resultado final y control de aforo / asistencia de público.
-                - Gestión de esquemas tácticos (4-3-3, 4-4-2, etc.).
-                - Gestión de alineaciones (límite estricto de 11 titulares y banco de suplentes).
-                - Gestión de sustituciones (5 cambios y 3 ventanas en tiempo regular; 6 cambios y 4 ventanas en tiempo suplementario).
+                - Gestión de esquemas tácticos
+                - Gestión de alineaciones 
+                - Gestión de sustituciones 
 */
 
 USE Mundial2026;
@@ -32,9 +32,9 @@ DECLARE @Reporte TABLE (
     ID INT IDENTITY(1,1),
     Procedimiento VARCHAR(50),
     Escenario VARCHAR(65),
-    Tipo_Prueba VARCHAR(25),
+    Tipo_Prueba VARCHAR(30),
     Resultado VARCHAR(10),
-    Detalle VARCHAR(255)
+    Detalle VARCHAR(500)
 );
 
 PRINT '======================================================================';
@@ -42,7 +42,7 @@ PRINT 'INICIANDO LOTE DE PRUEBAS 1:1 - MÓDULO PARTIDOS Y CAMBIOS (05)';
 PRINT '======================================================================';
 
 -- =========================================================================================
--- 1. BLOQUE DE PRUEBAS: PARTIDOS, ASISTENCIA Y FIXTURE (sp_CrearPartido, sp_RegistrarResultadoYAsistencia, sp_ConsultarFixture)
+-- 1. BLOQUE DE PRUEBAS: PARTIDOS Y ASISTENCIA DE PÚBLICO (sp_CrearPartido, sp_RegistrarAsistenciaPublico)
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
@@ -89,149 +89,151 @@ BEGIN TRY
     -- 1.B. Error 50001: Selección inexistente
     BEGIN TRY
         EXEC partido.sp_CrearPartido @id_sede1, @id_fase1, '2026-06-21 15:00:00', 999999, @id_s2;
-        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selección inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50001');
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selección inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50001');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50001
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selección inexistente', 'Validación THROW', 'OK', 'Capturado 50001: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selección inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selección inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selección inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.C. Error 50002: Misma selección local y visitante
     BEGIN TRY
         EXEC partido.sp_CrearPartido @id_sede1, @id_fase1, '2026-06-21 15:00:00', @id_s1, @id_s1;
-        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selecciones idénticas', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50002');
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selecciones idénticas', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50002');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50002
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selecciones idénticas', 'Validación THROW', 'OK', 'Capturado 50002: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selecciones idénticas', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selecciones idénticas', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo selecciones idénticas', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.D. Error 50003: Sede inexistente
     BEGIN TRY
-        EXEC partido.sp_CrearPartido 999999, @id_fase1, '2026-06-21 15:00:00', @id_s1, @id_s2;
-        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo sede inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50003');
+        EXEC partido.sp_CrearPartido 999999, @id_fase1, '2026-06-21 15:00:00', @id_s3, @id_s4;
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo sede inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50003');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50003
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo sede inexistente', 'Validación THROW', 'OK', 'Capturado 50003: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo sede inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo sede inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo sede inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.E. Error 50004: Fase inexistente
     BEGIN TRY
         EXEC partido.sp_CrearPartido @id_sede1, 999999, '2026-06-21 15:00:00', @id_s1, @id_s2;
-        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo fase inválida', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50004');
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo fase inválida', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50004');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50004
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo fase inválida', 'Validación THROW', 'OK', 'Capturado 50004: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo fase inválida', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo fase inválida', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo fase inválida', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.F. Error 50005: Partido duplicado en la misma fase
     BEGIN TRY
         EXEC partido.sp_CrearPartido @id_sede1, @id_fase1, '2026-06-25 20:00:00', @id_s1, @id_s2;
-        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo partido duplicado en fase', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50005');
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo partido duplicado en fase', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50005');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50005
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo partido duplicado en fase', 'Validación THROW', 'OK', 'Capturado 50005: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo partido duplicado en fase', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo partido duplicado en fase', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo partido duplicado en fase', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 1.G. Error 50006: Solapamiento de sede y horario
     BEGIN TRY
         EXEC partido.sp_CrearPartido @id_sede1, @id_fase1, '2026-06-20 18:00:00', @id_s3, @id_s4;
-        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo solapamiento en sede/hora', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50006');
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo solapamiento en sede/hora', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50006');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50006
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo solapamiento en sede/hora', 'Validación THROW', 'OK', 'Capturado 50006: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo solapamiento en sede/hora', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo solapamiento en sede/hora', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Bloqueo solapamiento en sede/hora', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 1.H. Registro exitoso de resultado y asistencia
-    EXEC partido.sp_RegistrarResultadoYAsistencia 
+    -- 1.G.2. Errores Múltiples en sp_CrearPartido (Selecciones idénticas + Sede inexistente + Fase inválida)
+    BEGIN TRY
+        EXEC partido.sp_CrearPartido 999999, 999999, '2026-06-21 15:00:00', @id_s1, @id_s1;
+        INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50002, 50003 y 50004');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50002)%' AND ERROR_MESSAGE() LIKE '%(50003)%' AND ERROR_MESSAGE() LIKE '%(50004)%'
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_CrearPartido', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'No agrupó todos: ' + ERROR_MESSAGE());
+    END CATCH;
+
+    -- 1.H. Registro exitoso de asistencia de público al estadio
+    EXEC partido.sp_RegistrarAsistenciaPublico 
         @id_partido = @id_partido_creado, 
-        @goles_local = 2, 
-        @goles_visitante = 1, 
         @asistencia_publico = 80000;
 
-    IF EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido_creado AND goles_local = 2 AND goles_visitante = 1 AND asistencia_publico = 80000)
-        INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Registro exitoso de resultado y público', 'Caso de Éxito', 'OK', 'Marcador 2-1 y asistencia 80.000 registrados.');
+    IF EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @id_partido_creado AND asistencia_publico = 80000)
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Registro exitoso de público en el estadio', 'Caso de Éxito', 'OK', 'Asistencia de 80.000 espectadores registrada.');
     ELSE
-        INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Registro exitoso de resultado y público', 'Caso de Éxito', 'FALLÓ', 'No se actualizaron los campos en Partido.');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Registro exitoso de público en el estadio', 'Caso de Éxito', 'FALLÓ', 'No se actualizó asistencia_publico en Partido.');
 
-    -- 1.I. Error 50043: Asistencia supera la capacidad del estadio (capacidad Azteca: 85.000)
+    -- 1.I. Error 50043: Asistencia supera la capacidad del estadio (capacidad estadio Azteca: 85.000)
     BEGIN TRY
-        EXEC partido.sp_RegistrarResultadoYAsistencia 
+        EXEC partido.sp_RegistrarAsistenciaPublico 
             @id_partido = @id_partido_creado, 
-            @goles_local = 2, 
-            @goles_visitante = 1, 
             @asistencia_publico = 95000; -- Supera los 85.000
-        INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo público superior a capacidad', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50043');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo público superior a capacidad', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50043');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50043
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo público superior a capacidad', 'Validación THROW', 'OK', 'Capturado 50043: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo público superior a capacidad', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo público superior a capacidad', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo público superior a capacidad', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 1.J. Error 50040: Bloqueo partido inexistente al registrar resultado
+    -- 1.J. Error 50040: Bloqueo partido inexistente al registrar asistencia de público
     BEGIN TRY
-        EXEC partido.sp_RegistrarResultadoYAsistencia 
+        EXEC partido.sp_RegistrarAsistenciaPublico 
             @id_partido = 999999, 
-            @goles_local = 1, 
-            @goles_visitante = 0, 
             @asistencia_publico = 50000;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50040');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50040');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50040
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo partido inexistente', 'Validación THROW', 'OK', 'Capturado 50040: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo partido inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 1.K. Error: Bloqueo goles negativos (impedido nativamente por tipo TINYINT o por THROW 50041)
+    -- 1.K. Error 50042: Bloqueo asistencia negativa
     BEGIN TRY
-        EXEC partido.sp_RegistrarResultadoYAsistencia 
+        EXEC partido.sp_RegistrarAsistenciaPublico 
             @id_partido = @id_partido_creado, 
-            @goles_local = -1, 
-            @goles_visitante = 2, 
-            @asistencia_publico = 50000;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo goles negativos', 'Validación Tipo/THROW', 'FALLÓ', 'Debió bloquear el valor negativo');
-    END TRY
-    BEGIN CATCH
-        IF ERROR_NUMBER() IN (50041, 8114)
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo goles negativos', 'Validación Tipo/THROW', 'OK', 'Bloqueado correctamente: ' + ERROR_MESSAGE());
-        ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo goles negativos', 'Validación Tipo/THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
-    END CATCH;
-
-    -- 1.L. Error 50042: Bloqueo asistencia negativa al registrar resultado
-    BEGIN TRY
-        EXEC partido.sp_RegistrarResultadoYAsistencia 
-            @id_partido = @id_partido_creado, 
-            @goles_local = 2, 
-            @goles_visitante = 1, 
             @asistencia_publico = -500;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo asistencia negativa', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50042');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo asistencia negativa', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50042');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50042
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo asistencia negativa', 'Validación THROW', 'OK', 'Capturado 50042: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo asistencia negativa', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarResultadoYAsistencia', 'Bloqueo asistencia negativa', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Bloqueo asistencia negativa', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 1.L. Errores Múltiples Simultáneos en sp_RegistrarAsistenciaPublico (Partido inexistente + Asistencia negativa)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarAsistenciaPublico 
+            @id_partido = 999999, 
+            @asistencia_publico = -500;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50040 y 50042');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50040)%' AND ERROR_MESSAGE() LIKE '%(50042)%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAsistenciaPublico', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'No agrupó todos: ' + ERROR_MESSAGE());
     END CATCH;
 
 END TRY
@@ -282,37 +284,49 @@ BEGIN TRY
     -- 2.C. Error 50010: Partido inexistente
     BEGIN TRY
         EXEC partido.sp_RegistrarFormacion 999999, @id_sf1, '4-4-2';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50010');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50010');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50010
-            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo partido inexistente', 'Validación THROW', 'OK', 'Capturado 50010: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo partido inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.D. Error 50011: Selección no participa del partido
     BEGIN TRY
         EXEC partido.sp_RegistrarFormacion @id_partido_f, @id_sf3, '4-4-2';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo selección ajena al partido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50011');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo selección ajena al partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50011');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50011
-            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo selección ajena al partido', 'Validación THROW', 'OK', 'Capturado 50011: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo selección ajena al partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo selección ajena al partido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo selección ajena al partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 2.E. Error 50012: Esquema táctico no permitido
     BEGIN TRY
         EXEC partido.sp_RegistrarFormacion @id_partido_f, @id_sf1, '1-2-7';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo esquema táctico no válido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50012');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo esquema táctico no válido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50012');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50012
-            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo esquema táctico no válido', 'Validación THROW', 'OK', 'Capturado 50012: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo esquema táctico no válido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo esquema táctico no válido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Bloqueo esquema táctico no válido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 2.E.2. Errores Múltiples Simultáneos en sp_RegistrarFormacion (Selección ajena + Esquema inválido)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarFormacion @id_partido_f, @id_sf3, '1-2-7';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50011 y 50012');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50011)%' AND ERROR_MESSAGE() LIKE '%(50012)%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarFormacion', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'No agrupó todos: ' + ERROR_MESSAGE());
     END CATCH;
 
     -- 2.F. Baja de formación exitosa
@@ -325,13 +339,13 @@ BEGIN TRY
     -- 2.G. Error 50013: Baja de formación inexistente
     BEGIN TRY
         EXEC partido.sp_EliminarFormacion @id_partido_f, @id_sf1;
-        INSERT INTO @Reporte VALUES ('sp_EliminarFormacion', 'Bloqueo baja formación inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50013');
+        INSERT INTO @Reporte VALUES ('sp_EliminarFormacion', 'Bloqueo baja formación inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50013');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50013
-            INSERT INTO @Reporte VALUES ('sp_EliminarFormacion', 'Bloqueo baja formación inexistente', 'Validación THROW', 'OK', 'Capturado 50013: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarFormacion', 'Bloqueo baja formación inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarFormacion', 'Bloqueo baja formación inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarFormacion', 'Bloqueo baja formación inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
 END TRY
@@ -437,49 +451,61 @@ BEGIN TRY
     -- 3.D. Error 50020: Formación inexistente
     BEGIN TRY
         EXEC partido.sp_RegistrarAlineacion 999999, @jal1, 1;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo formación inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50020');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo formación inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50020');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50020
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo formación inexistente', 'Validación THROW', 'OK', 'Capturado 50020: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo formación inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo formación inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo formación inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.E. Error 50021: Jugador inexistente
     BEGIN TRY
-        EXEC partido.sp_RegistrarAlineacion @id_formacion_al, 999999, 1;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50021');
+        EXEC partido.sp_RegistrarAlineacion @id_formacion_al, 999999, 0;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50021');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50021
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador inexistente', 'Validación THROW', 'OK', 'Capturado 50021: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
-    -- 3.F. Error 50022: Jugador no convocado en la selección
+    -- 3.F. Error 50022: Jugador no convocado en la selección (como suplente)
     BEGIN TRY
-        EXEC partido.sp_RegistrarAlineacion @id_formacion_al, @id_j_ajeno, 1;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador de otra selección', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50022');
+        EXEC partido.sp_RegistrarAlineacion @id_formacion_al, @id_j_ajeno, 0;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador de otra selección', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50022');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50022
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador de otra selección', 'Validación THROW', 'OK', 'Capturado 50022: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador de otra selección', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador de otra selección', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo jugador de otra selección', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 3.G. Error 50024: Bloqueo de titular número 12 (supera límite de 11)
     BEGIN TRY
         EXEC partido.sp_RegistrarAlineacion @id_formacion_al, @jal12, 1; -- Intentar pasar al suplente a titular habiendo ya 11
-        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo titular 12 (límite 11 titulares)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50024');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo titular 12 (límite 11 titulares)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50024');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50024
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo titular 12 (límite 11 titulares)', 'Validación THROW', 'OK', 'Capturado 50024: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo titular 12 (límite 11 titulares)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo titular 12 (límite 11 titulares)', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Bloqueo titular 12 (límite 11 titulares)', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+    END CATCH;
+
+    -- 3.G.2. Errores Múltiples Simultáneos en sp_RegistrarAlineacion (Jugador de otra selección + Cupo de 11 titulares lleno)
+    BEGIN TRY
+        EXEC partido.sp_RegistrarAlineacion @id_formacion_al, @id_j_ajeno, 1;
+        INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50022 y 50024');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%(50022)%' AND ERROR_MESSAGE() LIKE '%(50024)%'
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarAlineacion', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'No agrupó todos: ' + ERROR_MESSAGE());
     END CATCH;
 
     -- 3.H. Baja de jugador en alineación exitosa
@@ -492,13 +518,13 @@ BEGIN TRY
     -- 3.I. Error 50025: Baja de jugador no alineado
     BEGIN TRY
         EXEC partido.sp_EliminarAlineacion @id_formacion_al, @jal12;
-        INSERT INTO @Reporte VALUES ('sp_EliminarAlineacion', 'Bloqueo baja jugador no alineado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50025');
+        INSERT INTO @Reporte VALUES ('sp_EliminarAlineacion', 'Bloqueo baja jugador no alineado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50025');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50025
-            INSERT INTO @Reporte VALUES ('sp_EliminarAlineacion', 'Bloqueo baja jugador no alineado', 'Validación THROW', 'OK', 'Capturado 50025: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarAlineacion', 'Bloqueo baja jugador no alineado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarAlineacion', 'Bloqueo baja jugador no alineado', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarAlineacion', 'Bloqueo baja jugador no alineado', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
 END TRY
@@ -610,104 +636,104 @@ BEGIN TRY
     -- 4.C. Error 50030: Partido inexistente
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion 999999, @js3, @js14, 70, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50030');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50030');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50030
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo partido inexistente', 'Validación THROW', 'OK', 'Capturado 50030: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo partido inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo partido inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo partido inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.D. Error 50031: Mismo jugador sale y entra
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js3, @js3, 70, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo mismo jugador saliente y entrante', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50031');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo mismo jugador saliente y entrante', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50031');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50031
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo mismo jugador saliente y entrante', 'Validación THROW', 'OK', 'Capturado 50031: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo mismo jugador saliente y entrante', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo mismo jugador saliente y entrante', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo mismo jugador saliente y entrante', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.E. Error 50032: Jugador que sale no juega el partido
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, 999999, @js14, 70, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador saliente ajeno', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50032');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador saliente ajeno', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50032');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50032
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador saliente ajeno', 'Validación THROW', 'OK', 'Capturado 50032: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador saliente ajeno', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador saliente ajeno', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador saliente ajeno', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.F. Error 50033: Jugador que sale ya había salido antes
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js1, @js14, 70, 'Táctico'; -- @js1 ya salió en min 60
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador ya sustituido previamente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50033');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador ya sustituido previamente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50033');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50033
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador ya sustituido previamente', 'Validación THROW', 'OK', 'Capturado 50033: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador ya sustituido previamente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador ya sustituido previamente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo jugador ya sustituido previamente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.G. Error 50034: Jugador que entra no pertenece al banco de suplentes
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js3, @id_j_ajeno_su, 70, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo entrante no suplente del equipo', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50034');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo entrante no suplente del equipo', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50034');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50034
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo entrante no suplente del equipo', 'Validación THROW', 'OK', 'Capturado 50034: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo entrante no suplente del equipo', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo entrante no suplente del equipo', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo entrante no suplente del equipo', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- Ejecutamos cambios para consumir ventanas 2 y 3:
     EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js3, @js14, 70, 'Táctico'; -- Ventana 2 (Cambio 3)
     EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js4, @js15, 80, 'Táctico'; -- Ventana 3 (Cambio 4)
 
-    -- 4.H. Error 50035: Bloqueo de reingreso de jugador que ya había salido
+    -- 4.H. Errores 50034 + 50035: Bloqueo de reingreso de titular que ya había salido (@js2 salió en min 45)
     BEGIN TRY
-        EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js5, @js2, 80, 'Táctico'; -- @js2 salió en min 45
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo reingreso de jugador salido', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50034/50035');
+        EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js5, @js2, 80, 'Táctico';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo reingreso de jugador salido (50034+50035)', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50034 y 50035');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() IN (50034, 50035)
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo reingreso de jugador salido', 'Validación THROW', 'OK', 'Capturado ' + CAST(ERROR_NUMBER() AS VARCHAR) + ': ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo reingreso de jugador salido (50034+50035)', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo reingreso de jugador salido', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo reingreso de jugador salido (50034+50035)', 'Caso de Falla Múltiple', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.I. Error 50037: Bloqueo de 4ta ventana en tiempo regular (min 88)
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js5, @js16, 88, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 4ta ventana en regular (máx 3)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50037');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 4ta ventana en regular (máx 3)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50037');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50037
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 4ta ventana en regular (máx 3)', 'Validación THROW', 'OK', 'Capturado 50037: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 4ta ventana en regular (máx 3)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 4ta ventana en regular (máx 3)', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 4ta ventana en regular (máx 3)', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- Hacemos el 5to cambio en la misma Ventana 3 (Minuto 80) para agotar los 5 cambios regulares:
     EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js5, @js16, 80, 'Táctico'; -- Cambio 5 (Misma ventana 3, válido!)
 
-    -- 4.J. Error 50036: Bloqueo de 6to cambio en tiempo regular (minuto 85)
+    -- 4.J. Errores 50036 + 50037: Bloqueo de 6to cambio y 4ta ventana en tiempo regular (minuto 85)
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js6, @js17, 85, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 6to cambio en tiempo regular', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50036');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 6to cambio y 4ta ventana en regular', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50036 y 50037');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50036
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 6to cambio en tiempo regular', 'Validación THROW', 'OK', 'Capturado 50036: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 6to cambio y 4ta ventana en regular', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 6to cambio en tiempo regular', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 6to cambio y 4ta ventana en regular', 'Caso de Falla Múltiple', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.K. Sustitución en tiempo suplementario (6to cambio reglamentario FIFA en minuto > 90)
@@ -717,16 +743,16 @@ BEGIN TRY
     ELSE
         INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', '6to cambio habilitado en tiempo suplementario', 'Caso de Éxito', 'FALLÓ', 'No se insertó el 6to cambio en suplementario.');
 
-    -- 4.L. Error 50036 en prórroga: Bloqueo de 7mo cambio (límite absoluto)
+    -- 4.L. Errores 50036 + 50037 en prórroga: Bloqueo de 7mo cambio y 5ta ventana (límite absoluto)
     BEGIN TRY
         EXEC partido.sp_RegistrarSustitucion @id_partido_su, @js7, @js18, 98, 'Táctico';
-        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 7mo cambio en prórroga', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50036');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 7mo cambio y 5ta ventana en prórroga', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50036 y 50037');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50036
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 7mo cambio en prórroga', 'Validación THROW', 'OK', 'Capturado 50036: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 7mo cambio y 5ta ventana en prórroga', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 7mo cambio en prórroga', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_RegistrarSustitucion', 'Bloqueo 7mo cambio y 5ta ventana en prórroga', 'Caso de Falla Múltiple', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
     -- 4.M. Baja de sustitución exitosa
@@ -742,13 +768,13 @@ BEGIN TRY
     -- 4.N. Error 50038: Baja de sustitución inexistente
     BEGIN TRY
         EXEC partido.sp_EliminarSustitucion @id_sustitucion = 999999;
-        INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo baja sustitución inexistente', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50038');
+        INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo baja sustitución inexistente', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50038');
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() = 50038
-            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo baja sustitución inexistente', 'Validación THROW', 'OK', 'Capturado 50038: ' + ERROR_MESSAGE());
+            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo baja sustitución inexistente', 'Caso de Falla', 'OK', ERROR_MESSAGE());
         ELSE
-            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo baja sustitución inexistente', 'Validación THROW', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
+            INSERT INTO @Reporte VALUES ('sp_EliminarSustitucion', 'Bloqueo baja sustitución inexistente', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
 END TRY
@@ -766,10 +792,11 @@ PRINT '======================================================================';
 
 SELECT 
     ID AS [#],
-    Procedimiento,
-    Escenario,
-    Tipo_Prueba,
-    Resultado,
-    Detalle
+    Procedimiento AS [SP Evaluado],
+    Escenario AS [Escenario de Prueba],
+    Tipo_Prueba AS [Tipo],
+    Resultado AS [Estado],
+    Detalle AS [Detalle / Mensaje]
 FROM @Reporte
 ORDER BY ID ASC;
+GO
