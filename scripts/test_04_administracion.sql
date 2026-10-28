@@ -28,9 +28,9 @@ DECLARE @Reporte TABLE (
     ID INT IDENTITY(1,1),
     Procedimiento VARCHAR(50),
     Escenario VARCHAR(65),
-    Tipo_Prueba VARCHAR(25),
+    Tipo_Prueba VARCHAR(30),
     Resultado VARCHAR(10),
-    Detalle VARCHAR(255)
+    Detalle VARCHAR(500)
 );
 
 PRINT '======================================================================';
@@ -58,10 +58,27 @@ BEGIN TRY
         EXEC administracion.sp_InsertarPais
             @nombre = 'País Prueba Test',
             @id_generado = @id_pais_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Bloqueo por nombre duplicado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50002');
+        INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Bloqueo por nombre duplicado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50002');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Bloqueo por nombre duplicado', 'Validación THROW', 'OK', 'Capturado 50002: ' + ERROR_MESSAGE());
+        INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Bloqueo por nombre duplicado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
+    END CATCH;
+
+    -- 1.B.2. Errores Múltiples Simultáneos (Nombre vacío + PBI negativo + Huso inválido)
+    BEGIN TRY
+        DECLARE @id_pais_multi INT;
+        EXEC administracion.sp_InsertarPais
+            @nombre = '',
+            @pbi_percapita = -45000.50,
+            @huso_horario = 'MAL',
+            @id_generado = @id_pais_multi OUTPUT;
+        INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar múltiples errores agrupados');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_MESSAGE() LIKE '%nombre%' AND ERROR_MESSAGE() LIKE '%PBI%' AND ERROR_MESSAGE() LIKE '%huso horario%'
+            INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_InsertarPais', 'Captura de múltiples errores simultáneos', 'Caso de Falla Múltiple', 'FALLÓ', 'No agrupó todos: ' + ERROR_MESSAGE());
     END CATCH;
 
     -- 1.C. Modificación exitosa
@@ -104,10 +121,10 @@ BEGIN TRY
             @nombre = 'Fase Duplicada Orden',
             @orden = 99,
             @id_generado = @id_fase_fallida OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarFaseTorneo', 'Bloqueo por orden correlativo duplicado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50013');
+        INSERT INTO @Reporte VALUES ('sp_InsertarFaseTorneo', 'Bloqueo por orden correlativo duplicado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50013');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarFaseTorneo', 'Bloqueo por orden correlativo duplicado', 'Validación THROW', 'OK', 'Capturado 50013');
+        INSERT INTO @Reporte VALUES ('sp_InsertarFaseTorneo', 'Bloqueo por orden correlativo duplicado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 2.C. Modificación exitosa
@@ -147,10 +164,10 @@ BEGIN TRY
         EXEC administracion.sp_InsertarClub
             @nombre = 'Deportivo Prueba FC',
             @id_generado = @id_club_fallido OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarClub', 'Bloqueo por nombre de club duplicado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50021');
+        INSERT INTO @Reporte VALUES ('sp_InsertarClub', 'Bloqueo por nombre de club duplicado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50021');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarClub', 'Bloqueo por nombre de club duplicado', 'Validación THROW', 'OK', 'Capturado 50021');
+        INSERT INTO @Reporte VALUES ('sp_InsertarClub', 'Bloqueo por nombre de club duplicado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 3.C. Modificación exitosa
@@ -197,10 +214,10 @@ BEGIN TRY
             @huso_horario = 'GMT-3', -- inválido
             @id_pais = @id_pais_sede,
             @id_generado = @id_sede_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por huso horario fuera de formato', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50033');
+        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por huso horario fuera de formato', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50033');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por huso horario fuera de formato', 'Validación THROW', 'OK', 'Capturado 50033: ' + ERROR_MESSAGE());
+        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por huso horario fuera de formato', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- Sede Modificación exitosa
@@ -244,10 +261,10 @@ BEGIN TRY
     -- 5.B. Error: Confederación inválida
     BEGIN TRY
         EXEC administracion.sp_InsertarSeleccion @id_pais = @id_pais_sel, @confederacion = 'LIGA_FANTASMA', @grupo_asignado = 'B', @id_generado = @id_sel_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por confederación inválida', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50042');
+        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por confederación inválida', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50042');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por confederación inválida', 'Validación THROW', 'OK', 'Capturado 50042');
+        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por confederación inválida', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 5.C. Error: Grupo fuera de rango (ej: Grupo Z)
@@ -255,10 +272,10 @@ BEGIN TRY
         DECLARE @id_pais_otro INT;
         EXEC administracion.sp_InsertarPais @nombre = 'País Grupo Z', @id_generado = @id_pais_otro OUTPUT;
         EXEC administracion.sp_InsertarSeleccion @id_pais = @id_pais_otro, @confederacion = 'UEFA', @grupo_asignado = 'Z', @id_generado = @id_sel_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por grupo fuera de A-L', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50043');
+        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por grupo fuera de A-L', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50043');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por grupo fuera de A-L', 'Validación THROW', 'OK', 'Capturado 50043');
+        INSERT INTO @Reporte VALUES ('sp_InsertarSeleccion', 'Bloqueo por grupo fuera de A-L', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 5.D. Modificación exitosa (Reubicación a Grupo C)
@@ -299,16 +316,16 @@ BEGIN TRY
 
     INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Alta exitosa de Director Técnico principal', 'Caso de Éxito', 'OK', 'DT ID: ' + CAST(@id_dt_test AS VARCHAR(10)));
 
-    -- 6.B. Error: Bloqueo anti-"carnicero" (Rol no oficial)
+    -- 6.B. Error: Bloqueo (Rol no oficial)
     BEGIN TRY
         EXEC administracion.sp_InsertarMiembroCuerpoTecnico
             @nombre = 'Juan', @apellido = 'Pérez',
             @rol = 'Carnicero', @id_seleccion = @id_sel_ct,
             @id_generado = @id_ayudante_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de rol no oficial (Carnicero)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50052');
+        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de rol no oficial (Carnicero)', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50052');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de rol no oficial (Carnicero)', 'Validación THROW', 'OK', 'Capturado 50052: ' + ERROR_MESSAGE());
+        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de rol no oficial (Carnicero)', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 6.C. Error: Bloqueo de 2do Director Técnico principal en la misma selección
@@ -317,10 +334,10 @@ BEGIN TRY
             @nombre = 'Marcelo', @apellido = 'Gallardo Test',
             @rol = 'Director Técnico', @id_seleccion = @id_sel_ct,
             @id_generado = @id_ayudante_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de 2do DT principal en misma selección', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50054');
+        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de 2do DT principal en misma selección', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50054');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de 2do DT principal en misma selección', 'Validación THROW', 'OK', 'Capturado 50054: ' + ERROR_MESSAGE());
+        INSERT INTO @Reporte VALUES ('sp_InsertarMiembroCuerpoTecnico', 'Bloqueo de 2do DT principal en misma selección', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 6.D. Alta exitosa de Ayudante de Campo (Rol secundario permitido)
@@ -371,10 +388,10 @@ BEGIN TRY
             @nombre = 'Niño', @apellido = 'Test',
             @fecha_nacimiento = '2020-01-01', @id_club = @id_club_test,
             @posicion_habitual = 'Delantero', @id_generado = @id_jug_test OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_InsertarJugador', 'Bloqueo por edad menor a 15 años', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50063');
+        INSERT INTO @Reporte VALUES ('sp_InsertarJugador', 'Bloqueo por edad menor a 15 años', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50063');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_InsertarJugador', 'Bloqueo por edad menor a 15 años', 'Validación THROW', 'OK', 'Capturado 50063');
+        INSERT INTO @Reporte VALUES ('sp_InsertarJugador', 'Bloqueo por edad menor a 15 años', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 7.C. Modificación exitosa
@@ -423,19 +440,19 @@ BEGIN TRY
     -- 8.B. Error FIFA: Camiseta 1 asignada a jugador que NO es arquero
     BEGIN TRY
         EXEC administracion.sp_RegistrarConvocatoria @id_jugador = @id_del, @id_seleccion = @id_sel_conv, @dorsal = 1, @id_generado = @id_conv OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Camiseta 1 solo para arquero', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50078');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Camiseta 1 solo para arquero', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50078');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Camiseta 1 solo para arquero', 'Validación THROW', 'OK', 'Capturado 50078');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Camiseta 1 solo para arquero', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 8.C. Error FIFA: Dorsal fuera del rango 1 a 26 (ej: dorsal 30)
     BEGIN TRY
         EXEC administracion.sp_RegistrarConvocatoria @id_jugador = @id_del, @id_seleccion = @id_sel_conv, @dorsal = 30, @id_generado = @id_conv OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Dorsal fuera del rango 1-26', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50072');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Dorsal fuera del rango 1-26', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50072');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Dorsal fuera del rango 1-26', 'Validación THROW', 'OK', 'Capturado 50072');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo: Dorsal fuera del rango 1-26', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- Convocamos a Nico con camiseta 15
@@ -444,10 +461,10 @@ BEGIN TRY
     -- 8.D. Error: Dorsal repetido entre activos
     BEGIN TRY
         EXEC administracion.sp_RegistrarConvocatoria @id_jugador = @id_reemplazo, @id_seleccion = @id_sel_conv, @dorsal = 15, @id_generado = @id_conv OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por dorsal 15 ya ocupado', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50074');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por dorsal 15 ya ocupado', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50074');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por dorsal 15 ya ocupado', 'Validación THROW', 'OK', 'Capturado 50074');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por dorsal 15 ya ocupado', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
     -- 8.E. Baja médica individual (sp_RegistrarBajaConvocatoria)
@@ -481,15 +498,15 @@ BEGIN TRY
         SET @idx = @idx + 1;
     END;
 
-    -- Intento de jugador 27, debe lanzar error
+    -- Intento de jugador 27 con dorsal 10 repetido (debe lanzar múltiples errores: 50075 y 50074)
     BEGIN TRY
         DECLARE @id_j_27 INT, @id_conv_27 INT;
         EXEC administracion.sp_InsertarJugador @nombre = 'Player', @apellido = 'Excedente27', @fecha_nacimiento = '2000-01-01', @id_club = @id_club_conv, @posicion_habitual = 'Delantero', @id_generado = @id_j_27 OUTPUT;
         EXEC administracion.sp_RegistrarConvocatoria @id_jugador = @id_j_27, @id_seleccion = @id_sel_cupo, @dorsal = 10, @id_generado = @id_conv_27 OUTPUT;
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por cupo mayor a 26 activos (Jugador 27)', 'Validación THROW', 'FALLÓ', 'Debió arrojar 50075');
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por cupo > 26 activos y dorsal ocupado', 'Caso de Falla Múltiple', 'FALLÓ', 'Debió arrojar 50075 y 50074');
     END TRY
     BEGIN CATCH
-        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por cupo mayor a 26 activos (Jugador 27)', 'Validación THROW', 'OK', 'Capturado 50075: ' + ERROR_MESSAGE());
+        INSERT INTO @Reporte VALUES ('sp_RegistrarConvocatoria', 'Bloqueo por cupo > 26 activos y dorsal ocupado', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
     END CATCH;
 
 END TRY
