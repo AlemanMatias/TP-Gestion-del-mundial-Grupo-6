@@ -13,43 +13,10 @@
      - Villa, Brenda
      
    Script: 03_creacion_tablas.sql
-   Descripción: Eliminación previa en orden inverso de dependencias y creación
-                limpia de las 25 tablas con sus restricciones (PK, FK, UNIQUE, CHECK).
+   Descripción: Creación limpia de las 25 tablas con sus restricciones.
 */
 
 USE Mundial2026;
-GO
-
--- =========================================================================================
--- 1. LIMPIEZA PREVIA (HIJAS PRIMERO, MADRES AL FINAL)
--- =========================================================================================
-DROP TABLE IF EXISTS publicidad.Exhibicion;
-DROP TABLE IF EXISTS publicidad.Espacio_publicitario;
-DROP TABLE IF EXISTS publicidad.Pieza_Pais_Interes;
-DROP TABLE IF EXISTS publicidad.Pieza_Contenido;
-DROP TABLE IF EXISTS publicidad.Campania;
-DROP TABLE IF EXISTS publicidad.Anunciante;
-
-DROP TABLE IF EXISTS partido.Partido_Perdido_Suspension;
-DROP TABLE IF EXISTS partido.Suspension;
-DROP TABLE IF EXISTS partido.Tarjeta;
-DROP TABLE IF EXISTS partido.Gol;
-DROP TABLE IF EXISTS partido.Sustitucion;
-DROP TABLE IF EXISTS arbitraje.Designacion_Arbitral;
-DROP TABLE IF EXISTS partido.Alineacion;
-DROP TABLE IF EXISTS partido.Formacion_Partido;
-DROP TABLE IF EXISTS partido.Partido;
-
-DROP TABLE IF EXISTS arbitraje.Idioma;
-DROP TABLE IF EXISTS arbitraje.Arbitro;
-DROP TABLE IF EXISTS administracion.Convocatoria;
-DROP TABLE IF EXISTS administracion.Jugador;
-DROP TABLE IF EXISTS administracion.Miembro_Cuerpo_Tecnico;
-DROP TABLE IF EXISTS administracion.Seleccion;
-DROP TABLE IF EXISTS administracion.Sede;
-DROP TABLE IF EXISTS administracion.Club;
-DROP TABLE IF EXISTS administracion.Fase_Torneo;
-DROP TABLE IF EXISTS administracion.Pais;
 GO
 
 -- =========================================================================================

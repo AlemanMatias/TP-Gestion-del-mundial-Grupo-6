@@ -14,7 +14,7 @@
      
    Script: RECREAR_BASE.sql
    Descripción: Script para recrear por completo la base de datos Mundial2026
-                desde cero en el orden estricto de dependencias:
+                desde cero :
                 Base de datos, Esquemas, Tablas y Stored Procedures (Módulos 1 a 4).
                 
    MODO DE USO EN SSMS:
@@ -31,31 +31,35 @@ PRINT '======================================================================';
 PRINT 'INICIANDO RECREACIÓN TOTAL DE LA ESTRUCTURA Y SPs - MUNDIAL 2026';
 PRINT '======================================================================';
 
--- 1. BASE DE DATOS
+-- 1. BORRADO PREVIO DE LA BASE DE DATOS
+PRINT '>> [0/7] Eliminando Base de Datos [Mundial2026]...';
+:r $(ScriptsDir)\00_borrado_base_de_datos.sql
+
+-- 2. BASE DE DATOS
 PRINT '>> [1/7] Creando Base de Datos [Mundial2026]...';
 :r $(ScriptsDir)\01_creacion_base_de_datos.sql
 
--- 2. ESQUEMAS
+-- 3. ESQUEMAS
 PRINT '>> [2/7] Creando Esquemas funcionales...';
 :r $(ScriptsDir)\02_creacion_esquemas.sql
 
--- 3. TABLAS Y RESTRICCIONES (25 tablas en 3FN)
+-- 4. TABLAS Y RESTRICCIONES (25 tablas en 3FN)
 PRINT '>> [3/7] Creando Tablas y Restricciones de Integridad...';
 :r $(ScriptsDir)\03_creacion_tablas.sql
 
--- 4. PROCEDIMIENTOS ALMACENADOS - MÓDULO 1: ADMINISTRACIÓN
+-- 5. PROCEDIMIENTOS ALMACENADOS - MÓDULO 1: ADMINISTRACIÓN
 PRINT '>> [4/7] Compilando Stored Procedures del Módulo 1 (Administración)...';
 :r $(ScriptsDir)\04_sp_administracion.sql
 
--- 5. PROCEDIMIENTOS ALMACENADOS - MÓDULO 2: PARTIDOS Y CAMBIOS
+-- 6. PROCEDIMIENTOS ALMACENADOS - MÓDULO 2: PARTIDOS Y CAMBIOS
 PRINT '>> [5/7] Compilando Stored Procedures del Módulo 2 (Partidos y Cambios)...';
 :r $(ScriptsDir)\05_sp_partidos_y_cambios.sql
 
--- 6. PROCEDIMIENTOS ALMACENADOS - MÓDULO 3: GOLES, TARJETAS Y ÁRBITROS
+-- 7. PROCEDIMIENTOS ALMACENADOS - MÓDULO 3: GOLES, TARJETAS Y ÁRBITROS
 PRINT '>> [6/7] Compilando Stored Procedures del Módulo 3 (Goles, Tarjetas y Árbitros)...';
 :r $(ScriptsDir)\06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql
 
--- 7. PROCEDIMIENTOS ALMACENADOS - MÓDULO 4: PUBLICIDAD
+-- 8. PROCEDIMIENTOS ALMACENADOS - MÓDULO 4: PUBLICIDAD
 PRINT '>> [7/7] Compilando Stored Procedures del Módulo 4 (Publicidad)...';
 :r $(ScriptsDir)\07_sp_publicidad.sql
 
