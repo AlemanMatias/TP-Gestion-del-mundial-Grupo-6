@@ -35,22 +35,6 @@
 USE Mundial2026;
 GO
 
-
--- log de importacion
-IF OBJECT_ID('dbo.LogImportacion', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.LogImportacion (
-        id_log         INT IDENTITY(1,1) PRIMARY KEY,
-        archivo        VARCHAR(500)  NOT NULL,
-        fecha_proceso  DATETIME      NOT NULL DEFAULT GETDATE(),
-        fila_origen    VARCHAR(200)  NULL,
-        tipo_evento    VARCHAR(20)   NOT NULL, -- 'ERROR', 'ADVERTENCIA', 'INFO'
-        mensaje        VARCHAR(1000) NOT NULL
-    );
-END
-GO
-
-
 CREATE OR ALTER PROCEDURE administracion.sp_ImportarPaisesJSON
     @ruta_archivo VARCHAR(500)
 AS
