@@ -80,7 +80,7 @@ Ejecutar los scripts ubicados en `scripts/` respetando el siguiente **orden secu
 4. **`04_sp_administracion.sql`**: Compila los Stored Procedures del Módulo 1 (Administración y Convocatorias).
 5. **`05_sp_partidos_y_cambios.sql`**: Compila los Stored Procedures del Módulo 2 (Partidos, Formaciones, Alineaciones y Sustituciones).
 6. **`06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql`**: Compila los Stored Procedures del Módulo 3 (Árbitros, Designaciones, Goles, Tarjetas y Suspensiones).
-7. **`07_sp_publicidad.sql`**: Compila los Stored Procedures del Módulo 4 (Anunciantes, Campañas, Piezas, Mercados Objetivo y Motor de Asignación Publicitaria).
+7. **`07_sp_publicidad.sql`**: Compila los Stored Procedures del Módulo 4 (Anunciantes, Campañas, Piezas, Mercados Objetivo y asignación de publicidad).
 
 ---
 
