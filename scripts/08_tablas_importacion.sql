@@ -13,7 +13,7 @@
      - Villa, Brenda
      
    Script: 08_tablas_importacion.sql
-   Descripción: Infraestructura DDL de soporte para los procesos de importación masiva (Entrega 6).
+   Descripción: Infraestructura DDL de soporte para los procesos de importación masiva.
                 Crea la tabla centralizada dbo.LogImportacion para auditoría histórica,
                 trazabilidad de ejecuciones y reporte de fallos parciales de todos los módulos.
 */
@@ -21,9 +21,9 @@
 USE Mundial2026;
 GO
 
-PRINT '======================================================================';
-PRINT 'CREANDO INFRAESTRUCTURA DE IMPORTACIÓN MASIVA (ENTREGA 6)';
-PRINT '======================================================================';
+PRINT '===============================================';
+PRINT 'CREANDO INFRAESTRUCTURA DE IMPORTACIÓN MASIVA';
+PRINT '===============================================';
 
 IF OBJECT_ID('dbo.LogImportacion', 'U') IS NULL
 BEGIN
