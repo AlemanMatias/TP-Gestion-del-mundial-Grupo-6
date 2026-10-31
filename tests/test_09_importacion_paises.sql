@@ -33,7 +33,7 @@ DECLARE @Reporte TABLE (
     Detalle VARCHAR(500)
 );
 
--- Configuración de la ruta absoluta del archivo countries.json
+-- Configuración de la ruta absoluta del archivo countries.json (aca tienen que poner la ruta del dataset)
 DECLARE @ruta_dataset VARCHAR(500) = 'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\countries.json';
 
 -- =========================================================================================
