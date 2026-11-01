@@ -1,4 +1,4 @@
-// DER VERSION 1.1 - GRUPO 06
+// DER VERSION 1.2 - GRUPO 06
 // --- ------- --- - ----- --
 
 // GESTIÓN DE SEDES
@@ -8,6 +8,7 @@ Table Pais {
   nombre varchar
   pbi_percapita decimal
   huso_horario varchar
+  codigo_iso varchar
 }
  
 Table Sede {
@@ -211,4 +212,3 @@ Table Exhibicion {
   orden_prioridad int
   monto_facturado decimal
 }
-

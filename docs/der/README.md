@@ -19,4 +19,6 @@ Este directorio contiene el modelo conceptual y relacional del sistema.
 ### Versión 1.1 - 07/10/2026
   * Se reincorpora ID_Seleccion en Formacion_Partido para optimizar la trazabilidad del plantel y delegar la validación de localía/visita al Stored Procedure.
 
-  * Se incorpora el atributo orden int en la tabla Fase_Torneo para establecer la jerarquía cronológica de las etapas y optimizar las validaciones de fases eliminatorias en los Stored Procedures.
+### Version 1.2 - 01/11/2026
+  * Se incorporo codigo_iso en administración.Pais para estandarizar la identificación de paises y garantizar un cruce unívoco y sin discrepancias de nombres en los procesos de importación y consumo de APIs externas.
+

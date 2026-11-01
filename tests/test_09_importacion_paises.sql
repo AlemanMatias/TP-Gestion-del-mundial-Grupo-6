@@ -12,10 +12,10 @@
      - Pereira, Carlos Manuel
      - Villa, Brenda
      
-   Script: test_08_importacion_paises.sql
+   Script: test_09_importacion_paises.sql
    Descripción: Lote de pruebas unitarias para el Stored Procedure administracion.sp_ImportarPaisesJSON.
                 Valida validaciones de entrada, captura de fallas múltiples, importación masiva de 250 países,
-                resolución de husos de capitales y lógica Upsert.
+                resolución de husos de capitales, almacenamiento de código ISO-3 y lógica Upsert.
 */
 
 USE Mundial2026;
@@ -102,7 +102,24 @@ BEGIN TRY
         INSERT INTO @Reporte VALUES ('sp_ImportarPaisesJSON', 'Resolución husos por capital', 'Caso de Éxito', 'FALLÓ', ERROR_MESSAGE());
     END CATCH;
 
-    -- 1.F. IReejecución sin duplicar datos
+    -- 1.E.2. Verificación de almacenamiento del Código ISO-3
+    BEGIN TRY
+        DECLARE @iso_us CHAR(3), @iso_ar CHAR(3), @iso_fr CHAR(3), @iso_jp CHAR(3);
+        SELECT @iso_us = codigo_iso FROM administracion.Pais WHERE nombre = 'United States';
+        SELECT @iso_ar = codigo_iso FROM administracion.Pais WHERE nombre = 'Argentina';
+        SELECT @iso_fr = codigo_iso FROM administracion.Pais WHERE nombre = 'France';
+        SELECT @iso_jp = codigo_iso FROM administracion.Pais WHERE nombre = 'Japan';
+
+        IF @iso_us = 'USA' AND @iso_ar = 'ARG' AND @iso_fr = 'FRA' AND @iso_jp = 'JPN'
+            INSERT INTO @Reporte VALUES ('sp_ImportarPaisesJSON', 'Carga de código ISO-3', 'Caso de Éxito', 'OK', 'Códigos correctos (US: USA, AR: ARG, FR: FRA, JP: JPN)');
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_ImportarPaisesJSON', 'Carga de código ISO-3', 'Caso de Éxito', 'FALLÓ', 'US=' + ISNULL(@iso_us,'NULL') + ', AR=' + ISNULL(@iso_ar,'NULL'));
+    END TRY
+    BEGIN CATCH
+        INSERT INTO @Reporte VALUES ('sp_ImportarPaisesJSON', 'Carga de código ISO-3', 'Caso de Éxito', 'FALLÓ', ERROR_MESSAGE());
+    END CATCH;
+
+    -- 1.F. Reejecución sin duplicar datos
     BEGIN TRY
         EXEC administracion.sp_ImportarPaisesJSON @ruta_archivo = @ruta_dataset;
         

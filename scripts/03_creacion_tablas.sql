@@ -27,12 +27,19 @@ GO
 CREATE TABLE administracion.Pais (
     ID INT IDENTITY(1,1) NOT NULL,
     nombre VARCHAR(100) NOT NULL,
+    codigo_iso CHAR(3) NULL,
     pbi_percapita DECIMAL(12,2) NULL,
     huso_horario CHAR(6) NULL,
 
     CONSTRAINT PK_Pais PRIMARY KEY (ID),
-    CONSTRAINT UQ_Pais_nombre UNIQUE (nombre)
+    CONSTRAINT UQ_Pais_nombre UNIQUE (nombre),
+    CONSTRAINT CK_Pais_codigo_iso CHECK (codigo_iso IS NULL OR (LEN(codigo_iso) = 3 AND codigo_iso = UPPER(codigo_iso)))
 );
+GO
+
+CREATE UNIQUE NONCLUSTERED INDEX UQ_Pais_codigo_iso 
+ON administracion.Pais(codigo_iso) 
+WHERE codigo_iso IS NOT NULL;
 GO
 
 -- 2. Tabla: administracion.Fase_Torneo

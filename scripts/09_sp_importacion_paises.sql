@@ -115,6 +115,7 @@ BEGIN
     CREATE TABLE #paises_parseados (
         orden INT IDENTITY(1,1) PRIMARY KEY,
         nombre_pais VARCHAR(100),
+        codigo_iso CHAR(3),
         capital VARCHAR(100),
         huso_formateado CHAR(6)
     );
@@ -131,9 +132,10 @@ BEGIN
         SELECT 'Beijing',    'Asia/Shanghai'                         UNION ALL
         SELECT 'Ciudad de México', 'America/Mexico_City'
     )
-    INSERT INTO #paises_parseados (nombre_pais, capital, huso_formateado)
+    INSERT INTO #paises_parseados (nombre_pais, codigo_iso, capital, huso_formateado)
     SELECT 
         LTRIM(RTRIM(p.nombre_pais)) AS nombre_pais,
+        UPPER(NULLIF(LTRIM(RTRIM(p.iso3)), '')) AS codigo_iso,
         LTRIM(RTRIM(p.capital)) AS capital,
         CASE 
             WHEN COALESCE(huso_capital.texto_huso, huso_por_defecto.texto_huso) LIKE 'UTC[+-]%' 
@@ -145,6 +147,7 @@ BEGIN
     FROM OPENJSON(@json_contenido)
     WITH (
         nombre_pais          VARCHAR(100)  '$.name',
+        iso3                 VARCHAR(10)   '$.iso3',
         capital              VARCHAR(100)  '$.capital',
         zonas_horarias_json  NVARCHAR(MAX) '$.timezones' AS JSON
     ) AS p
@@ -177,6 +180,7 @@ BEGIN
 
     -- Variables de iteración mediante bucle WHILE sobre tabla temporal
     DECLARE @nombre_actual VARCHAR(100);
+    DECLARE @iso_actual CHAR(3);
     DECLARE @huso_actual CHAR(6);
     DECLARE @id_existente INT;
     DECLARE @pbi_actual DECIMAL(12,2);
@@ -191,6 +195,7 @@ BEGIN
     BEGIN
         SELECT 
             @nombre_actual = nombre_pais,
+            @iso_actual = codigo_iso,
             @huso_actual = huso_formateado
         FROM #paises_parseados
         WHERE orden = @id_actual;
@@ -217,6 +222,7 @@ BEGIN
                     SET @id_nuevo = NULL;
                     EXEC administracion.sp_InsertarPais
                         @nombre = @nombre_actual,
+                        @codigo_iso = @iso_actual,
                         @pbi_percapita = NULL,
                         @huso_horario = @huso_actual,
                         @id_generado = @id_nuevo OUTPUT;
@@ -229,6 +235,7 @@ BEGIN
                     EXEC administracion.sp_ModificarPais
                         @id = @id_existente,
                         @nombre = @nombre_actual,
+                        @codigo_iso = @iso_actual,
                         @pbi_percapita = @pbi_actual,
                         @huso_horario = @huso_actual;
 
