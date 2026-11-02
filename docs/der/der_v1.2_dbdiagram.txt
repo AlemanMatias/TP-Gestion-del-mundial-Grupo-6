@@ -17,6 +17,8 @@ Table Sede {
   ciudad varchar
   capacidad int
   huso_horario varchar 
+  latitud decimal
+  longitud decimal
   ID_Pais int [not null, ref: > Pais.ID]
 }
  

@@ -21,4 +21,5 @@ Este directorio contiene el modelo conceptual y relacional del sistema.
 
 ### Version 1.2 - 01/11/2026
   * Se incorporo codigo_iso en administración.Pais para estandarizar la identificación de paises y garantizar un cruce unívoco y sin discrepancias de nombres en los procesos de importación y consumo de APIs externas.
+  * Se incorporo latitud y longitud a la tabla Administración.Sede para facilitar los reportes de las entregas
 

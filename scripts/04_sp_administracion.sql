@@ -481,6 +481,8 @@ CREATE OR ALTER PROCEDURE administracion.sp_InsertarSede
     @capacidad INT,
     @huso_horario CHAR(6),
     @id_pais INT,
+    @latitud DECIMAL(9,6) = NULL,
+    @longitud DECIMAL(9,6) = NULL,
     @id_generado INT OUTPUT
 AS
 BEGIN
@@ -537,11 +539,24 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50035;
     END
 
+    -- Validar coordenadas geográficas si vienen informadas
+    IF @latitud IS NOT NULL AND (@latitud < -90.0 OR @latitud > 90.0)
+    BEGIN
+        SET @mensaje_error += '(50037) La latitud de la sede debe estar comprendida entre -90 y 90 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50037;
+    END
+
+    IF @longitud IS NOT NULL AND (@longitud < -180.0 OR @longitud > 180.0)
+    BEGIN
+        SET @mensaje_error += '(50038) La longitud de la sede debe estar comprendida entre -180 y 180 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50038;
+    END
+
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
-    INSERT INTO administracion.Sede (nombre, ciudad, capacidad, huso_horario, ID_Pais)
-    VALUES (LTRIM(RTRIM(@nombre)), LTRIM(RTRIM(@ciudad)), @capacidad, @huso_horario, @id_pais);
+    INSERT INTO administracion.Sede (nombre, ciudad, capacidad, huso_horario, latitud, longitud, ID_Pais)
+    VALUES (LTRIM(RTRIM(@nombre)), LTRIM(RTRIM(@ciudad)), @capacidad, @huso_horario, @latitud, @longitud, @id_pais);
 
     SET @id_generado = SCOPE_IDENTITY();
 END;
@@ -554,7 +569,9 @@ CREATE OR ALTER PROCEDURE administracion.sp_ModificarSede
     @ciudad VARCHAR(100),
     @capacidad INT,
     @huso_horario CHAR(6),
-    @id_pais INT
+    @id_pais INT,
+    @latitud DECIMAL(9,6) = NULL,
+    @longitud DECIMAL(9,6) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -614,6 +631,19 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50035;
     END
 
+    -- Validar coordenadas geográficas si vienen informadas
+    IF @latitud IS NOT NULL AND (@latitud < -90.0 OR @latitud > 90.0)
+    BEGIN
+        SET @mensaje_error += '(50037) La latitud de la sede debe estar comprendida entre -90 y 90 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50037;
+    END
+
+    IF @longitud IS NOT NULL AND (@longitud < -180.0 OR @longitud > 180.0)
+    BEGIN
+        SET @mensaje_error += '(50038) La longitud de la sede debe estar comprendida entre -180 y 180 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50038;
+    END
+
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
@@ -622,6 +652,8 @@ BEGIN
         ciudad = LTRIM(RTRIM(@ciudad)),
         capacidad = @capacidad,
         huso_horario = @huso_horario,
+        latitud = @latitud,
+        longitud = @longitud,
         ID_Pais = @id_pais
     WHERE ID = @id;
 END;
