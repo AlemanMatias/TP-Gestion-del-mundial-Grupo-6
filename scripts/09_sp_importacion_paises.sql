@@ -175,8 +175,7 @@ BEGIN
         WITH (
             texto_huso VARCHAR(10) '$.gmtOffsetName'
         ) AS zh_def
-    ) AS huso_por_defecto
-    WHERE p.nombre_pais IS NOT NULL AND LTRIM(RTRIM(p.nombre_pais)) <> '';
+    ) AS huso_por_defecto;
 
     -- Variables de iteración mediante bucle WHILE sobre tabla temporal
     DECLARE @nombre_actual VARCHAR(100);
@@ -200,63 +199,70 @@ BEGIN
         FROM #paises_parseados
         WHERE orden = @id_actual;
 
-        IF @nombre_actual IS NOT NULL
-        BEGIN
-            SET @total_procesados += 1;
+        SET @total_procesados += 1;
 
-            -- Aislamiento de error por registro
-            BEGIN TRY
-                -- Verificar si el país ya existe en la base de datos
-                SET @id_existente = NULL;
-                SET @pbi_actual = NULL;
+        -- Aislamiento de error por registro
+        BEGIN TRY
+            -- Verificar si el país ya existe en la base de datos
+            SET @id_existente = NULL;
+            SET @pbi_actual = NULL;
 
+            IF @nombre_actual IS NOT NULL AND LTRIM(RTRIM(@nombre_actual)) <> ''
+            BEGIN
                 SELECT 
                     @id_existente = ID,
                     @pbi_actual = pbi_percapita
                 FROM administracion.Pais
                 WHERE LOWER(nombre) = LOWER(@nombre_actual);
+            END;
 
-                IF @id_existente IS NULL
-                BEGIN
-                    -- Inserción mediante administracion.sp_InsertarPais
-                    SET @id_nuevo = NULL;
-                    EXEC administracion.sp_InsertarPais
-                        @nombre = @nombre_actual,
-                        @codigo_iso = @iso_actual,
-                        @pbi_percapita = NULL,
-                        @huso_horario = @huso_actual,
-                        @id_generado = @id_nuevo OUTPUT;
+            IF @id_existente IS NULL
+            BEGIN
+                -- Inserción mediante administracion.sp_InsertarPais
+                SET @id_nuevo = NULL;
+                EXEC administracion.sp_InsertarPais
+                    @nombre = @nombre_actual,
+                    @codigo_iso = @iso_actual,
+                    @pbi_percapita = NULL,
+                    @huso_horario = @huso_actual,
+                    @id_generado = @id_nuevo OUTPUT;
 
-                    SET @total_insertados += 1;
-                END
-                ELSE
-                BEGIN
-                    -- Actualización mediante administracion.sp_ModificarPais (preservando PBI existente)
-                    EXEC administracion.sp_ModificarPais
-                        @id = @id_existente,
-                        @nombre = @nombre_actual,
-                        @codigo_iso = @iso_actual,
-                        @pbi_percapita = @pbi_actual,
-                        @huso_horario = @huso_actual;
+                SET @total_insertados += 1;
+            END
+            ELSE
+            BEGIN
+                -- Actualización mediante administracion.sp_ModificarPais (preservando PBI existente)
+                EXEC administracion.sp_ModificarPais
+                    @id = @id_existente,
+                    @nombre = @nombre_actual,
+                    @codigo_iso = @iso_actual,
+                    @pbi_percapita = @pbi_actual,
+                    @huso_horario = @huso_actual;
 
-                    SET @total_actualizados += 1;
-                END
-            END TRY
-            BEGIN CATCH
-                SET @total_fallidos += 1;
-                INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
-                VALUES (@ruta_archivo, @fecha_proceso, @nombre_actual, 'ERROR', ERROR_MESSAGE());
-            END CATCH;
-        END;
+                SET @total_actualizados += 1;
+            END
+        END TRY
+        BEGIN CATCH
+            SET @total_fallidos += 1;
+            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+            VALUES (
+                @ruta_archivo,
+                @fecha_proceso,
+                ISNULL(NULLIF(@nombre_actual, ''), 'Elemento JSON #' + CAST(@id_actual AS VARCHAR(10))),
+                'ERROR',
+                ERROR_MESSAGE()
+            );
+        END CATCH;
 
         SET @id_actual += 1;
     END;
 
     -- Registrar evento de finalización en el log de auditoría
-    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
+    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
     VALUES (
         @ruta_archivo,
         @fecha_proceso,
+        '-',
         CASE WHEN @total_fallidos = 0 THEN 'INFO' ELSE 'ADVERTENCIA' END,
         'Proceso finalizado. Total: ' + CAST(@total_procesados AS VARCHAR(10)) +
         ' | Insertados: ' + CAST(@total_insertados AS VARCHAR(10)) +
