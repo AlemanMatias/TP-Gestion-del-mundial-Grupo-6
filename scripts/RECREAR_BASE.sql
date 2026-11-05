@@ -32,44 +32,48 @@ PRINT 'INICIANDO RECREACIÓN TOTAL DE LA ESTRUCTURA Y SPs - MUNDIAL 2026';
 PRINT '======================================================================';
 
 -- 1. BORRADO PREVIO DE LA BASE DE DATOS
-PRINT '>> [0/9] Eliminando Base de Datos [Mundial2026]...';
+PRINT '>> [0/10] Eliminando Base de Datos [Mundial2026]...';
 :r $(ScriptsDir)\00_borrado_base_de_datos.sql
 
 -- 2. BASE DE DATOS
-PRINT '>> [1/9] Creando Base de Datos [Mundial2026]...';
+PRINT '>> [1/10] Creando Base de Datos [Mundial2026]...';
 :r $(ScriptsDir)\01_creacion_base_de_datos.sql
 
 -- 3. ESQUEMAS
-PRINT '>> [2/9] Creando Esquemas funcionales...';
+PRINT '>> [2/10] Creando Esquemas funcionales...';
 :r $(ScriptsDir)\02_creacion_esquemas.sql
 
 -- 4. TABLAS Y RESTRICCIONES (25 tablas en 3FN)
-PRINT '>> [3/9] Creando Tablas y Restricciones de Integridad...';
+PRINT '>> [3/10] Creando Tablas y Restricciones de Integridad...';
 :r $(ScriptsDir)\03_creacion_tablas.sql
 
 -- 5. PROCEDIMIENTOS ALMACENADOS - MÓDULO 1: ADMINISTRACIÓN
-PRINT '>> [4/9] Compilando Stored Procedures del Módulo 1 (Administración)...';
+PRINT '>> [4/10] Compilando Stored Procedures del Módulo 1 (Administración)...';
 :r $(ScriptsDir)\04_sp_administracion.sql
 
 -- 6. PROCEDIMIENTOS ALMACENADOS - MÓDULO 2: PARTIDOS Y CAMBIOS
-PRINT '>> [5/9] Compilando Stored Procedures del Módulo 2 (Partidos y Cambios)...';
+PRINT '>> [5/10] Compilando Stored Procedures del Módulo 2 (Partidos y Cambios)...';
 :r $(ScriptsDir)\05_sp_partidos_y_cambios.sql
 
 -- 7. PROCEDIMIENTOS ALMACENADOS - MÓDULO 3: GOLES, TARJETAS Y ÁRBITROS
-PRINT '>> [6/9] Compilando Stored Procedures del Módulo 3 (Goles, Tarjetas y Árbitros)...';
+PRINT '>> [6/10] Compilando Stored Procedures del Módulo 3 (Goles, Tarjetas y Árbitros)...';
 :r $(ScriptsDir)\06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql
 
 -- 8. PROCEDIMIENTOS ALMACENADOS - MÓDULO 4: PUBLICIDAD
-PRINT '>> [7/9] Compilando Stored Procedures del Módulo 4 (Publicidad)...';
+PRINT '>> [7/10] Compilando Stored Procedures del Módulo 4 (Publicidad)...';
 :r $(ScriptsDir)\07_sp_publicidad.sql
 
 -- 9. INFRAESTRUCTURA DE IMPORTACIÓN 
-PRINT '>> [8/9] Creando Tablas de Auditoría de Importación (Log)...';
+PRINT '>> [8/10] Creando Tablas de Auditoría de Importación (Log)...';
 :r $(ScriptsDir)\08_tablas_importacion.sql
 
 -- 10. PROCEDIMIENTOS ALMACENADOS - IMPORTACIÓN DE PAÍSES
-PRINT '>> [9/9] Compilando Stored Procedures de Importación Masiva (Países JSON)...';
+PRINT '>> [9/10] Compilando Stored Procedures de Importación Masiva (Países JSON)...';
 :r $(ScriptsDir)\09_sp_importacion_paises.sql
+
+-- 11. PROCEDIMIENTOS ALMACENADOS - INTEGRACIÓN CON APIS REST
+PRINT '>> [10/10] Compilando Stored Procedures de Integración con APIs REST...';
+:r $(ScriptsDir)\09_b_sp_importacion_APIs.sql
 
 PRINT '======================================================================';
 PRINT '¡RECREACION DE BASE DE DATOS EXITOSA ';
