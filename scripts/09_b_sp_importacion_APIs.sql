@@ -20,19 +20,18 @@
                    verificación estricta de códigos HRESULT en cada operación COM y captura de
                    respuestas extensas en NVARCHAR(MAX).
                 2. administracion.sp_ImportarPbiBancoMundial: Consumo paginado en vivo de la API oficial
-                   del Banco Mundial (World Bank Indicator API - NY.GDP.PCAP.CD, per_page=1000) con
+                   del Banco Mundial (https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.CD?format=json&per_page=1000&date=2020:2024) con
                    recorrido automático de páginas ($[0].pages), particionamiento por código ISO-3,
                    distinción entre agregados regionales y países registrados, y actualización mediante
                    administracion.sp_ModificarPais.
+                3. administracion.sp_ImportarGeolocalizacionSedes: Consumo de la API de
+                   geocodificación Open-Meteo (https://geocoding-api.open-meteo.com/v1/search) para
+                   obtener latitud y longitud de cada sede registrada según su ciudad (1 única petición
+                   HTTP por sede), actualizando mediante administracion.sp_ModificarSede.
 
    ARQUITECTURA Y SEGURIDAD (OLE Automation Procedures):
-                La habilitación de 'Ole Automation Procedures' a nivel de instancia permite invocar
-                objetos COM (MSXML2.ServerXMLHTTP) directamente desde T-SQL.
-                En un entorno productivo real, habilitar componentes COM amplía la superficie de exposición
-                del servidor y requiere permisos de salida de red para el servicio SQL Server; por ello,
-                en producción se recomienda delegar las peticiones HTTP a un orquestador externo (SSIS,
-                Azure Data Factory o microservicio de integración) o utilizar sp_invoke_external_rest_endpoint
-                en entornos Azure SQL / SQL Server 2022 gestionados.
+                 La habilitación de Ole Automation Procedures a nivel de instancia permite invocar objetos COM (MSXML2.ServerXMLHTTP) directamente desde T-SQL. En un entorno productivo real, habilitar componentes COM amplía la superficie de exposición del servidor y requiere que el servicio SQL Server cuente con los permisos y la conectividad de red necesarios para realizar solicitudes HTTP salientes. Por ello, se recomienda delegar las peticiones HTTP a un componente externo de integración, como SQL Server Integration Services (SSIS), Azure Data Factory o un microservicio especializado.
+                Como alternativa, puede utilizarse sp_invoke_external_rest_endpoint, procedimiento nativo para invocar servicios REST mediante HTTPS, disponible en Azure SQL Database y SQL Server 2025 (17.x), entre otros entornos gestionados compatibles.
 */
 
 USE Mundial2026;
@@ -268,7 +267,7 @@ PRINT 'OK: Stored Procedure [administracion].[sp_InvocarApi] creado exitosamente
 GO
 
 -- =========================================================================================
--- 2. SP DE IMPORTACIÓN: administracion.sp_ImportarPbiBancoMundial
+-- 2. SP DE IMPORTACIÓN (API 1): administracion.sp_ImportarPbiBancoMundial
 -- =========================================================================================
 PRINT '>> Creando / actualizando [administracion].[sp_ImportarPbiBancoMundial]...';
 GO
@@ -342,8 +341,8 @@ BEGIN
                 @codigo_estado    = @codigo_estado OUTPUT;
         END TRY
         BEGIN CATCH
-            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
-            VALUES (@origen_log, @fecha_proceso, 'ERROR', 'Fallo de conectividad en página ' + CAST(@pagina_actual AS VARCHAR(10)) + ': ' + ERROR_MESSAGE());
+            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+            VALUES (@origen_log, @fecha_proceso, '-', 'ERROR', 'Fallo de conectividad en página ' + CAST(@pagina_actual AS VARCHAR(10)) + ': ' + ERROR_MESSAGE());
             THROW;
         END CATCH;
 
@@ -352,8 +351,8 @@ BEGIN
         BEGIN
             SET @codigo_error = 50031;
             SET @mensaje_error = '(50031) La API del Banco Mundial respondió con código de estado HTTP ' + ISNULL(CAST(@codigo_estado AS VARCHAR(10)), 'NULL') + ' en la página ' + CAST(@pagina_actual AS VARCHAR(10)) + '.';
-            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
-            VALUES (@origen_log, @fecha_proceso, 'ERROR', @mensaje_error);
+            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+            VALUES (@origen_log, @fecha_proceso, '-', 'ERROR', @mensaje_error);
             THROW @codigo_error, @mensaje_error, 1;
         END;
 
@@ -362,8 +361,8 @@ BEGIN
         BEGIN
             SET @codigo_error = 50032;
             SET @mensaje_error = '(50032) La respuesta recibida en la página ' + CAST(@pagina_actual AS VARCHAR(10)) + ' no contiene una estructura JSON válida.';
-            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
-            VALUES (@origen_log, @fecha_proceso, 'ERROR', @mensaje_error);
+            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+            VALUES (@origen_log, @fecha_proceso, '-', 'ERROR', @mensaje_error);
             THROW @codigo_error, @mensaje_error, 1;
         END;
 
@@ -381,8 +380,8 @@ BEGIN
         BEGIN
             SET @codigo_error = 50033;
             SET @mensaje_error = '(50033) La respuesta JSON de la API del Banco Mundial no contiene el nodo de datos esperado ($[1]).';
-            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
-            VALUES (@origen_log, @fecha_proceso, 'ERROR', @mensaje_error);
+            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+            VALUES (@origen_log, @fecha_proceso, '-', 'ERROR', @mensaje_error);
             THROW @codigo_error, @mensaje_error, 1;
         END;
 
@@ -535,10 +534,11 @@ BEGIN
     END;
 
     -- Registrar evento final de cierre en la tabla centralizada de auditoría
-    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
+    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
     VALUES (
         @origen_log,
         @fecha_proceso,
+        '-',
         CASE WHEN @total_fallidos = 0 THEN 'INFO' ELSE 'ADVERTENCIA' END,
         'Importación PBI Banco Mundial finalizada (' + CAST(@total_paginas AS VARCHAR(10)) + ' pág.). ' +
         'Total entidades API: ' + CAST(@total_procesados AS VARCHAR(10)) +
@@ -562,4 +562,188 @@ END;
 GO
 
 PRINT 'OK: Stored Procedure [administracion].[sp_ImportarPbiBancoMundial] creado exitosamente.';
+GO
+
+-- =========================================================================================
+-- 3. SP DE IMPORTACIÓN (API 2): administracion.sp_ImportarGeolocalizacionSedes
+-- =========================================================================================
+PRINT '>> Creando / actualizando [administracion].[sp_ImportarGeolocalizacionSedes]...';
+GO
+
+CREATE OR ALTER PROCEDURE administracion.sp_ImportarGeolocalizacionSedes
+    @url_api NVARCHAR(2000) = 'https://geocoding-api.open-meteo.com/v1/search'
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @fecha_proceso DATETIME = GETDATE();
+    DECLARE @origen_log    VARCHAR(500);
+
+    -- Variables de métricas para auditoría
+    DECLARE @total_procesados   INT = 0;
+    DECLARE @total_actualizados INT = 0;
+    DECLARE @total_fallidos     INT = 0;
+
+    -- Validaciones defensivas de parámetros de entrada
+    DECLARE @mensaje_error VARCHAR(2000) = '';
+    DECLARE @codigo_error  INT = 0;
+
+    SET @url_api = LTRIM(RTRIM(@url_api));
+
+    IF @url_api IS NULL OR @url_api = ''
+    BEGIN
+        SET @mensaje_error += '(50040) La URL de la API de geocodificación no puede ser nula ni vacía. ';
+        IF @codigo_error = 0 SET @codigo_error = 50040;
+    END
+    ELSE IF LOWER(@url_api) NOT LIKE 'https://%' AND LOWER(@url_api) NOT LIKE 'http://%'
+    BEGIN
+        SET @mensaje_error += '(50040) La URL de la API de geocodificación debe iniciar con un protocolo válido (https:// o http://). ';
+        IF @codigo_error = 0 SET @codigo_error = 50040;
+    END;
+
+    IF @codigo_error <> 0
+        THROW @codigo_error, @mensaje_error, 1;
+
+    SET @origen_log = LEFT(@url_api, 500);
+
+    -- Variable de tabla en memoria con las sedes actualmente registradas en administracion.Sede
+    DECLARE @sedes_a_procesar TABLE (
+        orden       INT IDENTITY(1,1) PRIMARY KEY,
+        id_sede     INT          NOT NULL,
+        nombre_sede VARCHAR(100) NOT NULL,
+        ciudad      VARCHAR(100) NOT NULL,
+        capacidad   INT          NOT NULL,
+        huso_actual CHAR(6)      NOT NULL,
+        id_pais     INT          NOT NULL
+    );
+
+    INSERT INTO @sedes_a_procesar (id_sede, nombre_sede, ciudad, capacidad, huso_actual, id_pais)
+    SELECT 
+        ID,
+        nombre,
+        ciudad,
+        capacidad,
+        huso_horario,
+        ID_Pais
+    FROM administracion.Sede;
+
+    -- Variables de iteración y procesamiento
+    DECLARE @id_sede           INT;
+    DECLARE @nombre_sede       VARCHAR(100);
+    DECLARE @ciudad            VARCHAR(100);
+    DECLARE @capacidad         INT;
+    DECLARE @huso_actual       CHAR(6);
+    DECLARE @id_pais           INT;
+
+    DECLARE @ciudad_codificada NVARCHAR(200);
+    DECLARE @url_consulta      NVARCHAR(2000);
+    DECLARE @json_respuesta    NVARCHAR(MAX);
+    DECLARE @codigo_estado     INT;
+
+    DECLARE @latitud_nueva     DECIMAL(9,6);
+    DECLARE @longitud_nueva    DECIMAL(9,6);
+
+    DECLARE @idx_sede INT = 1;
+    DECLARE @max_sede INT = 0;
+
+    SELECT @max_sede = ISNULL(MAX(orden), 0) FROM @sedes_a_procesar;
+
+    WHILE @idx_sede <= @max_sede
+    BEGIN
+        SELECT 
+            @id_sede     = id_sede,
+            @nombre_sede = nombre_sede,
+            @ciudad      = ciudad,
+            @capacidad   = capacidad,
+            @huso_actual = huso_actual,
+            @id_pais     = id_pais
+        FROM @sedes_a_procesar
+        WHERE orden = @idx_sede;
+
+        SET @total_procesados += 1;
+
+        BEGIN TRY
+            -- 1. Consultar la API de Geocodificación por el nombre de la ciudad de la sede (1 única petición HTTP por sede)
+            SET @ciudad_codificada = REPLACE(LTRIM(RTRIM(@ciudad)), ' ', '%20');
+            SET @url_consulta      = @url_api + N'?name=' + @ciudad_codificada + N'&count=1&language=en&format=json';
+            SET @json_respuesta    = NULL;
+            SET @codigo_estado     = NULL;
+
+            EXEC administracion.sp_InvocarApi
+                @url              = @url_consulta,
+                @metodo           = 'GET',
+                @timeout_segundos = 30,
+                @respuesta        = @json_respuesta OUTPUT,
+                @codigo_estado    = @codigo_estado OUTPUT;
+
+            IF @codigo_estado <> 200 OR @json_respuesta IS NULL OR ISJSON(@json_respuesta) <> 1
+            BEGIN
+                SET @mensaje_error = '(50041) Error al consultar la API de geocodificación para la ciudad ' + @ciudad + ' (HTTP ' + ISNULL(CAST(@codigo_estado AS VARCHAR(10)), 'NULL') + ').';
+                THROW 50041, @mensaje_error, 1;
+            END;
+
+            -- 2. Extraer latitud y longitud del primer resultado ($.results[0])
+            SET @latitud_nueva  = TRY_CAST(JSON_VALUE(@json_respuesta, '$.results[0].latitude') AS DECIMAL(9,6));
+            SET @longitud_nueva = TRY_CAST(JSON_VALUE(@json_respuesta, '$.results[0].longitude') AS DECIMAL(9,6));
+
+            IF @latitud_nueva IS NULL OR @longitud_nueva IS NULL
+            BEGIN
+                SET @mensaje_error = '(50042) La API de geocodificación no encontró coordenadas geográficas para la ciudad especificada (' + @ciudad + ').';
+                THROW 50042, @mensaje_error, 1;
+            END;
+
+            -- 3. Actualizar latitud y longitud mediante administracion.sp_ModificarSede (preservando su huso_horario y demás atributos)
+            EXEC administracion.sp_ModificarSede
+                @id           = @id_sede,
+                @nombre       = @nombre_sede,
+                @ciudad       = @ciudad,
+                @capacidad    = @capacidad,
+                @huso_horario = @huso_actual,
+                @id_pais      = @id_pais,
+                @latitud      = @latitud_nueva,
+                @longitud     = @longitud_nueva;
+
+            SET @total_actualizados += 1;
+        END TRY
+        BEGIN CATCH
+            SET @total_fallidos += 1;
+            INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+            VALUES (
+                @origen_log,
+                @fecha_proceso,
+                @nombre_sede + ' (' + @ciudad + ')',
+                'ERROR',
+                ERROR_MESSAGE()
+            );
+        END CATCH;
+
+        SET @idx_sede += 1;
+    END;
+
+    -- Registrar evento final de cierre en dbo.LogImportacion
+    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
+    VALUES (
+        @origen_log,
+        @fecha_proceso,
+        '-',
+        CASE WHEN @total_fallidos = 0 THEN 'INFO' ELSE 'ADVERTENCIA' END,
+        'Importación Geolocalización de Sedes finalizada. ' +
+        'Total sedes: ' + CAST(@total_procesados AS VARCHAR(10)) +
+        ' | Actualizadas: ' + CAST(@total_actualizados AS VARCHAR(10)) +
+        ' | Fallidas: ' + CAST(@total_fallidos AS VARCHAR(10))
+    );
+
+    -- Resumen final por pantalla
+    SELECT 
+        @total_procesados   AS total_sedes_procesadas,
+        @total_actualizados AS sedes_actualizadas,
+        @total_fallidos     AS sedes_fallidas,
+        CASE 
+            WHEN @total_fallidos = 0 THEN 'Actualización de latitud y longitud de sedes finalizada con éxito.'
+            ELSE 'Actualización de geolocalización de sedes finalizada con errores parciales. Consulte dbo.LogImportacion.'
+        END AS resultado;
+END;
+GO
+
+PRINT 'OK: Stored Procedure [administracion].[sp_ImportarGeolocalizacionSedes] creado exitosamente.';
 GO

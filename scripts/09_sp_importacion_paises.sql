@@ -258,10 +258,11 @@ BEGIN
     END;
 
     -- Registrar evento de finalización en el log de auditoría
-    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, tipo_evento, mensaje)
+    INSERT INTO dbo.LogImportacion (archivo, fecha_proceso, fila_origen, tipo_evento, mensaje)
     VALUES (
         @ruta_archivo,
         @fecha_proceso,
+        '-',
         CASE WHEN @total_fallidos = 0 THEN 'INFO' ELSE 'ADVERTENCIA' END,
         'Proceso finalizado. Total: ' + CAST(@total_procesados AS VARCHAR(10)) +
         ' | Insertados: ' + CAST(@total_insertados AS VARCHAR(10)) +
