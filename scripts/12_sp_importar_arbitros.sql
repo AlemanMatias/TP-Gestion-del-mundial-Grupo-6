@@ -203,10 +203,18 @@ BEGIN
         WHERE id_fila = @id_actual;
 
         BEGIN TRY
+            -- Mapeo de códigos ISO especiales (ej. ENG -> GBR, SUI -> CHE)
+                DECLARE @codigo_iso_mapeado VARCHAR(10) = 
+                    CASE UPPER(LTRIM(RTRIM(@v_pais_txt)))
+                        WHEN 'ENG' THEN 'GBR'
+                        WHEN 'SUI' THEN 'CHE'
+                        ELSE UPPER(LTRIM(RTRIM(@v_pais_txt)))
+                    END;
+
             -- Buscar el ID del país en la tabla administracion.Pais por nombre
             SELECT @id_pais_fk = ID 
             FROM administracion.Pais 
-            WHERE codigo_iso = @v_pais_txt; -- es universal 
+            WHERE codigo_iso = @codigo_iso_mapeado; -- es universal 
 
             -- Si el país no esta cargado previamente lanzamos un error controlado
             IF @id_pais_fk IS NULL
