@@ -1,3 +1,22 @@
+/* 
+   UNIVERSIDAD NACIONAL DE LA MATANZA (UNLaM)
+   Departamento de Ingeniería e Investigaciones Tecnológicas
+   Asignatura: Bases de Datos Aplicada (3641)
+   Comisión: 02-5600 (Viernes Tarde)
+   
+   TRABAJO PRÁCTICO - SISTEMA DE REGISTRO Y GESTIÓN DEL MUNDIAL DE FÚTBOL 2026
+   
+   Integrantes del Grupo:
+     - Aleman Flores, Matias Osvaldo 
+     - Gamarra Bravo, Sidney Maribel
+     - Pereira, Carlos Manuel
+     - Villa, Brenda
+     
+   Script: 11_sp_importar_jugadores_clubes.sql
+   Descripción: Procedimiento almacenado para la importación masiva de jugadores y clubes
+                desde el archivo SquadLists.csv.
+*/
+
 USE Mundial2026;
 GO
  

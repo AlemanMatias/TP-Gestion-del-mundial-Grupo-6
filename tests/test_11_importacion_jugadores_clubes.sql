@@ -1,3 +1,24 @@
+/* 
+   UNIVERSIDAD NACIONAL DE LA MATANZA (UNLaM)
+   Departamento de Ingeniería e Investigaciones Tecnológicas
+   Asignatura: Bases de Datos Aplicada (3641)
+   Comisión: 02-5600 (Viernes Tarde)
+   
+   TRABAJO PRÁCTICO - SISTEMA DE REGISTRO Y GESTIÓN DEL MUNDIAL DE FÚTBOL 2026
+   
+   Integrantes del Grupo:
+     - Aleman Flores, Matias Osvaldo 
+     - Gamarra Bravo, Sidney Maribel
+     - Pereira, Carlos Manuel
+     - Villa, Brenda
+     
+   Script: test_11_importacion_jugadores_clubes.sql
+   Descripción: Batería de pruebas para la importación masiva de jugadores y clubes.
+                - Valida excepciones de archivo (ruta vacía, extensión incorrecta, inexistente).
+                - Carga masiva exitosa de jugadores y clubes desde SquadLists.csv.
+                - Pruebas de Idempotencia y Upsert (re-ejecución y actualización).
+                - Manejo de errores parciales con SquadLists_errores.csv y auditoría en dbo.LogImportacion.
+*/
 
 USE Mundial2026;
 GO
@@ -8,8 +29,8 @@ GO
 IF OBJECT_ID('tempdb..#cfg') IS NOT NULL DROP TABLE #cfg;
 CREATE TABLE #cfg (clave VARCHAR(30) PRIMARY KEY, valor VARCHAR(500) NOT NULL);
 INSERT INTO #cfg (clave, valor) VALUES
-    ('csv_ok',       'C:\Users\JOACARLI\Desktop\CARLOS\2do año\Bases de datos Aplicada\TP-Gestion-del-mundial-Grupo-6\datasets\SquadLists.csv'),
-    ('csv_errores',  'C:\Users\JOACARLI\Desktop\CARLOS\2do año\Bases de datos Aplicada\TP-Gestion-del-mundial-Grupo-6\datasets\SquadLists_errores.csv');
+    ('csv_ok',       'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\SquadLists.csv'),
+    ('csv_errores',  'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\SquadLists_errores.csv');
 GO
  
 /* ==========================================================================
@@ -180,4 +201,3 @@ SELECT id_log, archivo, fecha_proceso, tipo_evento, LEFT(mensaje, 150) AS mensaj
 FROM dbo.LogImportacion
 ORDER BY id_log DESC;
 GO
- 

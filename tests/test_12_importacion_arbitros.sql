@@ -22,8 +22,8 @@ USE Mundial2026;
 GO
 
 -- Acá hay que poner la ruta propia de cada uno
-DECLARE @ruta_dataset VARCHAR(500) = 'C:\datasets\countries.json' 
-EXEC administracion.sp_ImportarPaisesJSON @ruta_archivo = @ruta_dataset
+DECLARE @ruta_dataset VARCHAR(500) = 'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\countries.json';
+EXEC administracion.sp_ImportarPaisesJSON @ruta_archivo = @ruta_dataset;
 -- SELECT * FROM administracion.Pais
 
 SET NOCOUNT ON;
@@ -32,9 +32,8 @@ PRINT '======================================================================';
 PRINT 'INICIANDO PRUEBAS - IMPORTACIÓN DE ÁRBITROS';
 PRINT '======================================================================';
 
-
 -- 0. Garantizar país válido de prueba utilizando la firma oficial con @id_generado OUTPUT
-IF NOT EXISTS (SELECT 1 FROM administracion.Pais WHERE nombre = 'Bélgica')
+IF NOT EXISTS (SELECT 1 FROM administracion.Pais WHERE codigo_iso = 'BEL' OR nombre = 'Bélgica')
 BEGIN
     DECLARE @id_pais_generado INT;
     EXEC administracion.sp_InsertarPais 
@@ -47,7 +46,7 @@ END
 
 -- 1. Definir la ruta del archivo de pruebas mixtas (con errores y aciertos)
 -- Acá hay que poner la ruta de cada uno
-DECLARE @RutaCSVPrueba VARCHAR(500) = 'C:\datasets\arbitros.csv';
+DECLARE @RutaCSVPrueba VARCHAR(500) = 'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\arbitros.csv';
 
 PRINT '>>> Ejecutando primera importación (Éxitos y Errores)...';
 -- Nota: Si el SP del CSV tira un THROW general por archivo vacío o ruta, lo 'atrapamos' abajo.
