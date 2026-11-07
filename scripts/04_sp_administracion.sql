@@ -23,6 +23,7 @@ GO
 -- 1.1. ALTA DE PAÍS
 CREATE OR ALTER PROCEDURE administracion.sp_InsertarPais
     @nombre VARCHAR(100),
+    @codigo_iso CHAR(3) = NULL,
     @pbi_percapita DECIMAL(12,2) = NULL,
     @huso_horario CHAR(6) = NULL,
     @id_generado INT OUTPUT
@@ -61,12 +62,27 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50004;
     END
 
+    -- Validar formato del código ISO (3 letras mayúsculas) si viene informado
+    IF @codigo_iso IS NOT NULL AND (LEN(LTRIM(RTRIM(@codigo_iso))) <> 3 OR UPPER(LTRIM(RTRIM(@codigo_iso))) NOT LIKE '[A-Z][A-Z][A-Z]')
+    BEGIN
+        SET @mensaje_error += '(50006) El código ISO debe poseer exactamente 3 letras alfabéticas (ejemplo: ARG). ';
+        IF @codigo_error = 0 SET @codigo_error = 50006;
+    END
+
+    -- Validar unicidad del código ISO si viene informado
+    IF @codigo_iso IS NOT NULL AND LEN(LTRIM(RTRIM(@codigo_iso))) = 3
+       AND EXISTS (SELECT 1 FROM administracion.Pais WHERE codigo_iso = UPPER(LTRIM(RTRIM(@codigo_iso))))
+    BEGIN
+        SET @mensaje_error += '(50007) Ya existe un país registrado con ese código ISO. ';
+        IF @codigo_error = 0 SET @codigo_error = 50007;
+    END
+
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
     -- Inserción
-    INSERT INTO administracion.Pais (nombre, pbi_percapita, huso_horario)
-    VALUES (LTRIM(RTRIM(@nombre)), @pbi_percapita, @huso_horario);
+    INSERT INTO administracion.Pais (nombre, codigo_iso, pbi_percapita, huso_horario)
+    VALUES (LTRIM(RTRIM(@nombre)), UPPER(NULLIF(LTRIM(RTRIM(@codigo_iso)), '')), @pbi_percapita, @huso_horario);
 
     SET @id_generado = SCOPE_IDENTITY();
 END;
@@ -76,6 +92,7 @@ GO
 CREATE OR ALTER PROCEDURE administracion.sp_ModificarPais
     @id INT,
     @nombre VARCHAR(100),
+    @codigo_iso CHAR(3) = NULL,
     @pbi_percapita DECIMAL(12,2) = NULL,
     @huso_horario CHAR(6) = NULL
 AS
@@ -120,12 +137,28 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50004;
     END
 
+    -- Validar formato del código ISO (3 letras mayúsculas) si viene informado
+    IF @codigo_iso IS NOT NULL AND (LEN(LTRIM(RTRIM(@codigo_iso))) <> 3 OR UPPER(LTRIM(RTRIM(@codigo_iso))) NOT LIKE '[A-Z][A-Z][A-Z]')
+    BEGIN
+        SET @mensaje_error += '(50006) El código ISO debe poseer exactamente 3 letras alfabéticas (ejemplo: ARG). ';
+        IF @codigo_error = 0 SET @codigo_error = 50006;
+    END
+
+    -- Validar unicidad del código ISO si viene informado
+    IF @codigo_iso IS NOT NULL AND LEN(LTRIM(RTRIM(@codigo_iso))) = 3
+       AND EXISTS (SELECT 1 FROM administracion.Pais WHERE codigo_iso = UPPER(LTRIM(RTRIM(@codigo_iso))) AND ID <> @id)
+    BEGIN
+        SET @mensaje_error += '(50007) Ya existe otro país registrado con ese código ISO. ';
+        IF @codigo_error = 0 SET @codigo_error = 50007;
+    END
+
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
     -- Actualización
     UPDATE administracion.Pais
     SET nombre = LTRIM(RTRIM(@nombre)),
+        codigo_iso = UPPER(NULLIF(LTRIM(RTRIM(@codigo_iso)), '')),
         pbi_percapita = @pbi_percapita,
         huso_horario = @huso_horario
     WHERE ID = @id;
@@ -448,6 +481,8 @@ CREATE OR ALTER PROCEDURE administracion.sp_InsertarSede
     @capacidad INT,
     @huso_horario CHAR(6),
     @id_pais INT,
+    @latitud DECIMAL(9,6) = NULL,
+    @longitud DECIMAL(9,6) = NULL,
     @id_generado INT OUTPUT
 AS
 BEGIN
@@ -504,11 +539,24 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50035;
     END
 
+    -- Validar coordenadas geográficas si vienen informadas
+    IF @latitud IS NOT NULL AND (@latitud < -90.0 OR @latitud > 90.0)
+    BEGIN
+        SET @mensaje_error += '(50037) La latitud de la sede debe estar comprendida entre -90 y 90 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50037;
+    END
+
+    IF @longitud IS NOT NULL AND (@longitud < -180.0 OR @longitud > 180.0)
+    BEGIN
+        SET @mensaje_error += '(50038) La longitud de la sede debe estar comprendida entre -180 y 180 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50038;
+    END
+
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
-    INSERT INTO administracion.Sede (nombre, ciudad, capacidad, huso_horario, ID_Pais)
-    VALUES (LTRIM(RTRIM(@nombre)), LTRIM(RTRIM(@ciudad)), @capacidad, @huso_horario, @id_pais);
+    INSERT INTO administracion.Sede (nombre, ciudad, capacidad, huso_horario, latitud, longitud, ID_Pais)
+    VALUES (LTRIM(RTRIM(@nombre)), LTRIM(RTRIM(@ciudad)), @capacidad, @huso_horario, @latitud, @longitud, @id_pais);
 
     SET @id_generado = SCOPE_IDENTITY();
 END;
@@ -521,7 +569,9 @@ CREATE OR ALTER PROCEDURE administracion.sp_ModificarSede
     @ciudad VARCHAR(100),
     @capacidad INT,
     @huso_horario CHAR(6),
-    @id_pais INT
+    @id_pais INT,
+    @latitud DECIMAL(9,6) = NULL,
+    @longitud DECIMAL(9,6) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -581,6 +631,19 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50035;
     END
 
+    -- Validar coordenadas geográficas si vienen informadas
+    IF @latitud IS NOT NULL AND (@latitud < -90.0 OR @latitud > 90.0)
+    BEGIN
+        SET @mensaje_error += '(50037) La latitud de la sede debe estar comprendida entre -90 y 90 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50037;
+    END
+
+    IF @longitud IS NOT NULL AND (@longitud < -180.0 OR @longitud > 180.0)
+    BEGIN
+        SET @mensaje_error += '(50038) La longitud de la sede debe estar comprendida entre -180 y 180 grados. ';
+        IF @codigo_error = 0 SET @codigo_error = 50038;
+    END
+
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
@@ -589,6 +652,8 @@ BEGIN
         ciudad = LTRIM(RTRIM(@ciudad)),
         capacidad = @capacidad,
         huso_horario = @huso_horario,
+        latitud = @latitud,
+        longitud = @longitud,
         ID_Pais = @id_pais
     WHERE ID = @id;
 END;

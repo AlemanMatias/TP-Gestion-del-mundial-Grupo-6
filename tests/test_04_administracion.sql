@@ -195,20 +195,22 @@ BEGIN TRY
     DECLARE @id_pais_sede INT, @id_sede_test INT;
     EXEC administracion.sp_InsertarPais @nombre = 'País Sede Test', @id_generado = @id_pais_sede OUTPUT;
 
-    -- Sede Alta exitosa
+    -- Sede Alta exitosa con coordenadas
     EXEC administracion.sp_InsertarSede
         @nombre = 'Estadio Prueba Central',
         @ciudad = 'Ciudad Deportiva',
         @capacidad = 60000,
         @huso_horario = '-03:00',
         @id_pais = @id_pais_sede,
+        @latitud = 25.774270,
+        @longitud = -80.193660,
         @id_generado = @id_sede_test OUTPUT;
-    INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Alta de estadio reglamentario', 'Caso de Éxito', 'OK', 'Sede ID: ' + CAST(@id_sede_test AS VARCHAR(10)));
+    INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Alta de estadio con coordenadas geográficas', 'Caso de Éxito', 'OK', 'Sede ID: ' + CAST(@id_sede_test AS VARCHAR(10)));
 
     -- Sede Error: Formato de huso horario incorrecto
     BEGIN TRY
         EXEC administracion.sp_InsertarSede
-            @nombre = 'Estadio Fallido',
+            @nombre = 'Estadio Fallido Huso',
             @ciudad = 'Ciudad Deportiva',
             @capacidad = 50000,
             @huso_horario = 'GMT-3', -- inválido
@@ -220,14 +222,50 @@ BEGIN TRY
         INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por huso horario fuera de formato', 'Caso de Falla', 'OK', ERROR_MESSAGE());
     END CATCH;
 
-    -- Sede Modificación exitosa
+    -- Sede Error: Latitud fuera de rango (-90 a 90)
+    BEGIN TRY
+        DECLARE @id_sede_lat_err INT;
+        EXEC administracion.sp_InsertarSede
+            @nombre = 'Estadio Fallido Latitud',
+            @ciudad = 'Ciudad Deportiva',
+            @capacidad = 50000,
+            @huso_horario = '-03:00',
+            @id_pais = @id_pais_sede,
+            @latitud = 95.500000,
+            @id_generado = @id_sede_lat_err OUTPUT;
+        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por latitud fuera de rango', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50037');
+    END TRY
+    BEGIN CATCH
+        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por latitud fuera de rango', 'Caso de Falla', 'OK', ERROR_MESSAGE());
+    END CATCH;
+
+    -- Sede Error: Longitud fuera de rango (-180 a 180)
+    BEGIN TRY
+        DECLARE @id_sede_lon_err INT;
+        EXEC administracion.sp_InsertarSede
+            @nombre = 'Estadio Fallido Longitud',
+            @ciudad = 'Ciudad Deportiva',
+            @capacidad = 50000,
+            @huso_horario = '-03:00',
+            @id_pais = @id_pais_sede,
+            @longitud = -195.500000,
+            @id_generado = @id_sede_lon_err OUTPUT;
+        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por longitud fuera de rango', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50038');
+    END TRY
+    BEGIN CATCH
+        INSERT INTO @Reporte VALUES ('sp_InsertarSede', 'Bloqueo por longitud fuera de rango', 'Caso de Falla', 'OK', ERROR_MESSAGE());
+    END CATCH;
+
+    -- Sede Modificación exitosa con coordenadas actualizadas
     EXEC administracion.sp_ModificarSede
         @id = @id_sede_test,
         @nombre = 'Estadio Prueba Remodelado',
         @ciudad = 'Ciudad Deportiva',
         @capacidad = 65000,
         @huso_horario = '-03:00',
-        @id_pais = @id_pais_sede;
+        @id_pais = @id_pais_sede,
+        @latitud = 25.790000,
+        @longitud = -80.200000;
     INSERT INTO @Reporte VALUES ('sp_ModificarSede', 'Ampliación de capacidad de estadio', 'Caso de Éxito', 'OK', 'Modificado ID: ' + CAST(@id_sede_test AS VARCHAR(10)));
 
     -- Sede Baja exitosa

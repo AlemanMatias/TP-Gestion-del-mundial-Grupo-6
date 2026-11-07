@@ -13,58 +13,82 @@
      - Villa, Brenda
      
    Script: RECREAR_BASE.sql
-   Descripción: Script para recrear por completo la base de datos Mundial2026
-                desde cero :
-                Base de datos, Esquemas, Tablas y Stored Procedures (Módulos 1 a 4).
+   Descripción: Script maestro para recrear por completo la base de datos Mundial2026
+                desde cero en un solo clic:
+                - Base de datos y Esquemas funcionales.
+                - 25 Tablas relacionales con restricciones e índices.
+                - Stored Procedures de Negocio (Módulos 1 a 4).
+                - Infraestructura DDL de Importación.
+                - Stored Procedures de Importación Masiva (JSON, APIs REST y CSV).
                 
    MODO DE USO EN SSMS:
-   1. Configuración: Indicar en el paso 0 la ruta local de la carpeta 'scripts'
+   1. Configuración: Asegurarse de que la variable ScriptsDir apunte a la carpeta 'scripts' local.
    2. Activar 'Modo SQLCMD': En el menú superior de SSMS ir a:
       Consulta (Query) -> Modo SQLCMD (SQLCMD Mode).
    3. Presionar F5 (Ejecutar).
 */
 
--- 0. Poner entre comillas la ruta donde se aloja la carpeta de scripts del proyecto :setvar ScriptsDir "ruta scripts"
-:setvar ScriptsDir "g:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\scripts"
+-- 0. Ruta absoluta a la carpeta 'scripts' del proyecto
+:setvar ScriptsDir "G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\scripts"
 
 PRINT '======================================================================';
 PRINT 'INICIANDO RECREACIÓN TOTAL DE LA ESTRUCTURA Y SPs - MUNDIAL 2026';
 PRINT '======================================================================';
 
 -- 1. BORRADO PREVIO DE LA BASE DE DATOS
-PRINT '>> [0/7] Eliminando Base de Datos [Mundial2026]...';
+PRINT '>> [0/12] Eliminando Base de Datos [Mundial2026] si existe...';
 :r $(ScriptsDir)\00_borrado_base_de_datos.sql
 
 -- 2. BASE DE DATOS
-PRINT '>> [1/7] Creando Base de Datos [Mundial2026]...';
+PRINT '>> [1/12] Creando Base de Datos [Mundial2026]...';
 :r $(ScriptsDir)\01_creacion_base_de_datos.sql
 
 -- 3. ESQUEMAS
-PRINT '>> [2/7] Creando Esquemas funcionales...';
+PRINT '>> [2/12] Creando Esquemas funcionales...';
 :r $(ScriptsDir)\02_creacion_esquemas.sql
 
 -- 4. TABLAS Y RESTRICCIONES (25 tablas en 3FN)
-PRINT '>> [3/7] Creando Tablas y Restricciones de Integridad...';
+PRINT '>> [3/12] Creando Tablas y Restricciones de Integridad...';
 :r $(ScriptsDir)\03_creacion_tablas.sql
 
 -- 5. PROCEDIMIENTOS ALMACENADOS - MÓDULO 1: ADMINISTRACIÓN
-PRINT '>> [4/7] Compilando Stored Procedures del Módulo 1 (Administración)...';
+PRINT '>> [4/12] Compilando Stored Procedures del Módulo 1 (Administración)...';
 :r $(ScriptsDir)\04_sp_administracion.sql
 
 -- 6. PROCEDIMIENTOS ALMACENADOS - MÓDULO 2: PARTIDOS Y CAMBIOS
-PRINT '>> [5/7] Compilando Stored Procedures del Módulo 2 (Partidos y Cambios)...';
+PRINT '>> [5/12] Compilando Stored Procedures del Módulo 2 (Partidos y Cambios)...';
 :r $(ScriptsDir)\05_sp_partidos_y_cambios.sql
 
 -- 7. PROCEDIMIENTOS ALMACENADOS - MÓDULO 3: GOLES, TARJETAS Y ÁRBITROS
-PRINT '>> [6/7] Compilando Stored Procedures del Módulo 3 (Goles, Tarjetas y Árbitros)...';
+PRINT '>> [6/12] Compilando Stored Procedures del Módulo 3 (Goles, Tarjetas y Árbitros)...';
 :r $(ScriptsDir)\06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql
 
 -- 8. PROCEDIMIENTOS ALMACENADOS - MÓDULO 4: PUBLICIDAD
-PRINT '>> [7/7] Compilando Stored Procedures del Módulo 4 (Publicidad)...';
+PRINT '>> [7/12] Compilando Stored Procedures del Módulo 4 (Publicidad)...';
 :r $(ScriptsDir)\07_sp_publicidad.sql
 
+-- 9. INFRAESTRUCTURA DE IMPORTACIÓN (LOG CENTRALIZADO)
+PRINT '>> [8/12] Creando Tablas de Auditoría de Importación (Log)...';
+:r $(ScriptsDir)\08_tablas_importacion.sql
+
+-- 10. PROCEDIMIENTOS ALMACENADOS - IMPORTACIÓN DE PAÍSES (JSON)
+PRINT '>> [9/12] Compilando Stored Procedures de Importación Masiva (Países JSON)...';
+:r $(ScriptsDir)\09_sp_importacion_paises.sql
+
+-- 11. PROCEDIMIENTOS ALMACENADOS - CONSUMO E INTEGRACIÓN CON APIs 
+PRINT '>> [10/12] Compilando Stored Procedures de APIs REST (Banco Mundial y Geolocalización)...';
+:r $(ScriptsDir)\09_b_sp_importacion_APIs.sql
+
+-- 12. PROCEDIMIENTOS ALMACENADOS - IMPORTACIÓN DE JUGADORES Y CLUBES (CSV)
+PRINT '>> [11/12] Compilando Stored Procedures de Importación Masiva (Jugadores y Clubes CSV)...';
+:r $(ScriptsDir)\11_sp_importar_jugadores_clubes.sql
+
+-- 13. PROCEDIMIENTOS ALMACENADOS - IMPORTACIÓN DE ÁRBITROS (CSV SCRAPING)
+PRINT '>> [12/12] Compilando Stored Procedures de Importación Masiva (Árbitros CSV)...';
+:r $(ScriptsDir)\12_sp_importar_arbitros.sql
+
 PRINT '======================================================================';
-PRINT '¡RECREACION DE BASE DE DATOS EXITOSA ';
-PRINT 'Base de datos limpia y lista.';
+PRINT '¡RECREACIÓN DE BASE DE DATOS EXITOSA!';
+PRINT 'Base de datos limpia, esquemas, tablas y SPs compilados.';
 PRINT '======================================================================';
 GO
