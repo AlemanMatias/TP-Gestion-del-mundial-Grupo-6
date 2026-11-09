@@ -54,7 +54,7 @@ PRINT '>>> [04] OCUPACIÓN PUBLICITARIA E INGRESOS GENERADOS';
 GO
 
 -- ====================================================================
--- REPORTE 05: MATRIZ DE PRIME TIME (TABLA CRUZADA / PIVOT)
+-- REPORTE 05: MATRIZ DE PRIME TIME
 -- Archivo: scripts/reportes/05_reporte_matriz_prime_time.sql
 -- ====================================================================
 PRINT '>>> [05] MATRIZ DE PRIME TIME POR MERCADOS / PAÍSES';
@@ -62,17 +62,17 @@ PRINT '>>> [05] MATRIZ DE PRIME TIME POR MERCADOS / PAÍSES';
 GO
 
 -- ====================================================================
--- REPORTE 06: SELECCIONES Y PLANTILLAS (VECTOR ANIDADO - XML)
+-- REPORTE 06: SELECCIONES Y PLANTILLAS - XML
 -- Archivo: scripts/reportes/06_reporte_selecciones_plantillas.sql
 -- ====================================================================
-PRINT '>>> [06] SELECCIONES Y PLANTILLAS (SALIDA XML)';
--- EXEC administracion.sp_ReporteSeleccionesPlantillasXML;
+PRINT '>>> [06] SELECCIONES Y PLANTILLAS';
+-- EXEC administracion.sp_ReporteSeleccionesPlantillas;
 GO
 
 -- ====================================================================
--- REPORTE 07: RESULTADOS DE LOS ENCUENTROS (SALIDA XML)
+-- REPORTE 07: RESULTADOS DE LOS ENCUENTROS - XML
 -- Archivo: scripts/reportes/07_reporte_resultados_encuentros.sql
 -- ====================================================================
-PRINT '>>> [07] RESULTADOS DE LOS ENCUENTROS (SALIDA XML)';
--- EXEC partido.sp_ReporteResultadosEncuentrosXML;
+PRINT '>>> [07] RESULTADOS DE LOS ENCUENTROS';
+-- EXEC partido.sp_ReporteResultadosEncuentros;
 GO
