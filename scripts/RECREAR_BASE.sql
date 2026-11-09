@@ -84,10 +84,20 @@ PRINT '>> [11/12] Compilando Stored Procedures de Importación Masiva (Jugadores
 :r $(RepoDir)\scripts\11_sp_importar_jugadores_clubes.sql
 
 -- 13. PROCEDIMIENTOS ALMACENADOS - IMPORTACIÓN DE ÁRBITROS (CSV SCRAPING)
-PRINT '>> [12/12] Compilando Stored Procedures de Importación Masiva (Árbitros CSV)...';
+PRINT '>> [12/13] Compilando Stored Procedures de Importación Masiva (Árbitros CSV)...';
 :r $(RepoDir)\scripts\12_sp_importar_arbitros.sql
 
--- 14. FUNCIÓN AUXILIAR DE CONFIGURACIÓN GLOBAL: RUTA DE DATASETS
+-- 14. PROCEDIMIENTOS ALMACENADOS - REPORTES ANALITICOS (ENTREGA 7)
+PRINT '>> [13/13] Compilando Stored Procedures de Reportes (Entrega 7)...';
+:r $(RepoDir)\scripts\reportes\01_reporte_goleadores.sql
+:r $(RepoDir)\scripts\reportes\02_reporte_tarjetas_y_suspensiones.sql
+:r $(RepoDir)\scripts\reportes\03_reporte_designaciones_arbitrales.sql
+:r $(RepoDir)\scripts\reportes\04_reporte_ocupacion_publicitaria.sql
+:r $(RepoDir)\scripts\reportes\05_reporte_matriz_prime_time.sql
+:r $(RepoDir)\scripts\reportes\06_reporte_selecciones_plantillas.sql
+:r $(RepoDir)\scripts\reportes\07_reporte_resultados_encuentros.sql
+
+-- 15. FUNCIÓN AUXILIAR DE CONFIGURACIÓN GLOBAL: RUTA DE DATASETS
 -- Memoriza en la base de datos la ubicación de la carpeta 'datasets' en esta máquina
 -- para que ningún otro script o integrante deba configurar rutas manualmente.
 PRINT '>> Registrando función auxiliar global administracion.fn_RutaDatasets()...';

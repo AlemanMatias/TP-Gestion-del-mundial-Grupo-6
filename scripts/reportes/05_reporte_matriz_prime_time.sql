@@ -1,0 +1,25 @@
+/* 
+   UNIVERSIDAD NACIONAL DE LA MATANZA (UNLaM)
+   Departamento de Ingeniería e Investigaciones Tecnológicas
+   Asignatura: Bases de Datos Aplicada (3641)
+   Comisión: 02-5600 (Viernes Tarde)
+   
+   TRABAJO PRÁCTICO - SISTEMA DE REGISTRO Y GESTIÓN DEL MUNDIAL DE FÚTBOL 2026
+   ENTREGA 7: REPORTES
+   
+   Integrantes del Grupo:
+     - Aleman Flores, Matias Osvaldo 
+     - Gamarra Bravo, Sidney Maribel
+     - Pereira, Carlos Manuel
+     - Villa, Brenda
+     
+   Script: scripts/reportes/05_reporte_matriz_prime_time.sql
+   
+   Descripción:
+     Matriz de prime time: tabla cruzada (pivot) que muestre, para cada partido, en qué mercados/países su horario cae en prime time.
+*/
+
+USE Mundial2026;
+GO
+
+-- TODO: Implementar Stored Procedure para este reporte.
