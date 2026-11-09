@@ -7,7 +7,7 @@ La carga de datos se realizara con el script `JUEGO_DE_DATOS.sql` de la carpeta 
 1. `01_administracion_y_planteles.sql`: Importación de países, sedes, selecciones, cuerpos técnicos y planteles.
 2. `02_catalogo_publicidad.sql`: Carga de anunciantes, campañas, piezas publicitarias, y paises de interes.
 3. `03_partidos_fase_grupos.sql`: Fixture de Fase de Grupos (Partidos 1 al 16).
-4. `04_partidos_fase_final.sql`: Fase de eliminación directa (Partidos 17 al 26: 16vos, Octavos, Cuartos, Semifinales, Tercer Puesto y Gran Final).
+4. `04_partidos_fase_final.sql`: Fase de eliminación directa (Partidos 17 al 26: 16vos, Octavos, Cuartos, Semifinales, Tercer Puesto y Final).
 
 ---
 
@@ -41,7 +41,7 @@ A continuación se detalla la totalidad de los 26 partidos disputados en la simu
 | **23** | Semifinal | 14/07/2026 | MetLife Stadium (East Rutherford, USA) | **Argentina vs Francia** | `2 - 1` | Szymon Marciniak (Polonia 🇵🇱) |
 | **24** | Semifinal | 15/07/2026 | AT&T Stadium (Dallas, USA) | **Brasil vs Portugal** | `1 - 0` | Pierluigi Collina (Italia 🇮🇹) |
 | **25** | Tercer Puesto | 18/07/2026 | Hard Rock Stadium (Miami, USA) | **Francia vs Portugal** | `2 - 1` | Slavko Vinčić (Eslovenia 🇸🇮) |
-| **26** | **Gran Final** | 19/07/2026 | MetLife Stadium (East Rutherford, USA) | **Argentina vs Brasil** | `3 - 2` | Szymon Marciniak (Polonia 🇵🇱) |
+| **26** | **Final** | 19/07/2026 | MetLife Stadium (East Rutherford, USA) | **Argentina vs Brasil** | `3 - 2` | Szymon Marciniak (Polonia 🇵🇱) |
 
 
 ---
