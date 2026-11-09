@@ -615,3 +615,116 @@ BEGIN
     END CATCH;
 END;
 GO
+
+-- =========================================================================
+-- PROCEDIMIENTOS AUXILIARES PARA CARGA DE PARTIDOS (SEMILLA)
+-- =========================================================================
+
+-- SP AUXILIAR: Inscribe formación y 26 convocados (o 25 si hay suspendidos)
+CREATE OR ALTER PROCEDURE partido.sp_AuxCargarPlanillaEquipo
+    @id_partido         INT,
+    @id_seleccion       INT,
+    @esquema            VARCHAR(10),
+    @dorsales_titulares VARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC partido.sp_RegistrarFormacion
+        @id_partido      = @id_partido,
+        @id_seleccion    = @id_seleccion,
+        @esquema_tactico = @esquema;
+
+    DECLARE @id_formacion INT = (
+        SELECT ID FROM partido.Formacion_Partido
+        WHERE ID_Partido = @id_partido AND ID_Seleccion = @id_seleccion
+    );
+    DECLARE @fecha_partido DATETIME = (SELECT fecha_hora_local FROM partido.Partido WHERE ID = @id_partido);
+
+    DECLARE @planilla TABLE (fila INT IDENTITY(1,1), id_jugador INT, es_titular BIT);
+
+    INSERT INTO @planilla (id_jugador, es_titular)
+    SELECT 
+        ID_Jugador,
+        CASE 
+            WHEN ROW_NUMBER() OVER (
+                ORDER BY 
+                    CASE WHEN @dorsales_titulares IS NOT NULL 
+                          AND CHARINDEX(',' + CAST(c.dorsal AS VARCHAR(10)) + ',', ',' + @dorsales_titulares + ',') > 0
+                         THEN CHARINDEX(',' + CAST(c.dorsal AS VARCHAR(10)) + ',', ',' + @dorsales_titulares + ',')
+                         ELSE 999 END,
+                    c.dorsal ASC
+            ) <= 11 THEN 1 
+            ELSE 0 
+        END
+    FROM administracion.Convocatoria c
+    WHERE c.ID_Seleccion = @id_seleccion
+      AND c.estado = 1
+      AND NOT EXISTS (
+          SELECT 1 FROM partido.Suspension su
+          JOIN partido.Partido p_orig ON p_orig.ID = su.ID_Partido
+          WHERE su.ID_Jugador = c.ID_Jugador
+            AND @fecha_partido > p_orig.fecha_hora_local
+            AND su.partidos_descontados < su.partidos_totales
+      );
+
+    DECLARE @i INT = 1, @max INT = (SELECT MAX(fila) FROM @planilla);
+    DECLARE @id_jug INT, @titular BIT;
+    WHILE @i <= @max
+    BEGIN
+        SELECT @id_jug = id_jugador, @titular = es_titular FROM @planilla WHERE fila = @i;
+        EXEC partido.sp_RegistrarAlineacion 
+            @id_formacion = @id_formacion, 
+            @id_jugador   = @id_jug, 
+            @es_titular   = @titular;
+        SET @i += 1;
+    END;
+END;
+GO
+
+-- SP AUXILIAR: Designa terna de 5 árbitros neutrales
+CREATE OR ALTER PROCEDURE arbitraje.sp_AuxDesignarArbitrosPartido
+    @id_partido           INT,
+    @id_arbitro_principal INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @pais_loc INT, @pais_vis INT;
+    SELECT @pais_loc = sl.ID_Pais, @pais_vis = sv.ID_Pais
+    FROM partido.Partido p
+    JOIN administracion.Seleccion sl ON sl.ID = p.ID_Seleccion_Local
+    JOIN administracion.Seleccion sv ON sv.ID = p.ID_Seleccion_Visitante
+    WHERE p.ID = @id_partido;
+
+    DECLARE @terna TABLE (orden INT IDENTITY(1,1), id_arbitro INT);
+    INSERT INTO @terna (id_arbitro)
+    SELECT TOP 5 a.ID
+    FROM arbitraje.Arbitro a
+    WHERE a.ID_Pais <> @pais_loc AND a.ID_Pais <> @pais_vis
+    ORDER BY NEWID();
+
+    DECLARE @i INT = 1, @id_arb INT, @rol VARCHAR(30);
+    WHILE @i <= 5
+    BEGIN
+        SELECT @id_arb = id_arbitro FROM @terna WHERE orden = @i;
+        SET @rol = CASE @i
+            WHEN 1 THEN 'Árbitro Principal'
+            WHEN 2 THEN 'Árbitro Asistente 1'
+            WHEN 3 THEN 'Árbitro Asistente 2'
+            WHEN 4 THEN 'Cuarto Árbitro'
+            WHEN 5 THEN 'Árbitro VAR'
+        END;
+
+        IF @i = 1 SET @id_arbitro_principal = @id_arb;
+
+        EXEC arbitraje.sp_DesignarArbitro
+            @ID_Partido = @id_partido,
+            @ID_Arbitro = @id_arb,
+            @Rol        = @rol,
+            @Informe    = NULL;
+
+        SET @i += 1;
+    END;
+END;
+GO

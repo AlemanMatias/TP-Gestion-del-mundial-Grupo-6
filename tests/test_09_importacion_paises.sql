@@ -34,7 +34,10 @@ DECLARE @Reporte TABLE (
 );
 
 -- Configuración de la ruta absoluta del archivo countries.json (aca tienen que poner la ruta del dataset)
-DECLARE @ruta_dataset VARCHAR(500) = 'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\countries.json';
+DECLARE @dir_datasets VARCHAR(500) = '..\..\datasets';
+IF OBJECT_ID('administracion.fn_RutaDatasets', 'FN') IS NOT NULL
+    SET @dir_datasets = administracion.fn_RutaDatasets();
+DECLARE @ruta_dataset VARCHAR(500) = @dir_datasets + '\countries.json';
 
 -- =========================================================================================
 -- 1. PRUEBAS: administracion.sp_ImportarPaisesJSON
