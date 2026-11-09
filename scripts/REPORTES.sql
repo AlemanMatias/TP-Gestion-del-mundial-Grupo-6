@@ -15,7 +15,6 @@
      
    Script: scripts/REPORTES.sql
    Descripción: Script para ejecución y prueba individual de los 7 reportes del Mundial 2026.
-                Cada integrante puede seleccionar el bloque correspondiente a su reporte y presionar F5.
 */
 
 USE Mundial2026;
