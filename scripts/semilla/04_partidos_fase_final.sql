@@ -429,12 +429,12 @@ EXEC arbitraje.sp_AuxDesignarArbitrosPartido @id_partido = @id_partido, @id_arbi
 EXEC partido.sp_AuxCargarPlanillaEquipo @id_partido = @id_partido, @id_seleccion = @sel_bra, @esquema = '4-2-3-1';
 EXEC partido.sp_AuxCargarPlanillaEquipo @id_partido = @id_partido, @id_seleccion = @sel_por, @esquema = '4-3-3';
 
--- Min 60: Cambio en Brasil (Sale #9, Entra Rodrygo #25)
+-- Min 60: Cambio en Brasil (Sale Matheus Cunha #9, Entra Igor Thiago #25)
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 9  AND estado = 1;
 SELECT @j2 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 25 AND estado = 1;
 EXEC partido.sp_RegistrarSustitucion @id_partido = @id_partido, @id_jugador_sale = @j1, @id_jugador_entra = @j2, @minuto = 60, @motivo = 'Táctico';
 
--- Min 82: Gol de #7 BRA con asistencia de Rodrygo (#25 BRA)
+-- Min 82: Gol de Vinícius Júnior (#7 BRA) con asistencia de Igor Thiago (#25 BRA)
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 7  AND estado = 1;
 SELECT @j2 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 25 AND estado = 1;
 EXEC partido.sp_RegistrarGol @ID_Partido = @id_partido, @ID_Jugador_autor = @j1, @ID_Jugador_asistencia = @j2, @ID_Seleccion = @sel_bra, @Minuto = 82, @Tipo = 'Jugada', @Periodo = 'Segundo Tiempo';
@@ -508,7 +508,7 @@ EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_partido, @ID_Jugad
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 10 AND estado = 1;
 EXEC partido.sp_RegistrarGol @ID_Partido = @id_partido, @ID_Jugador_autor = @j1, @ID_Jugador_asistencia = NULL, @ID_Seleccion = @sel_bra, @Minuto = 61, @Tipo = 'Tiro Libre', @Periodo = 'Segundo Tiempo';
 
--- Min 65: Cambio en Brasil (Sale #9, Entra Rodrygo #25)
+-- Min 65: Cambio en Brasil (Sale Matheus Cunha #9, Entra Igor Thiago #25)
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 9  AND estado = 1;
 SELECT @j2 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_bra AND dorsal = 25 AND estado = 1;
 EXEC partido.sp_RegistrarSustitucion @id_partido = @id_partido, @id_jugador_sale = @j1, @id_jugador_entra = @j2, @minuto = 65, @motivo = 'Táctico';

@@ -368,18 +368,6 @@ BEGIN
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
-    -- A partir de dieciseisavos emitir advertencia si procede de un entorno cercano o cruzado
-    DECLARE @OrdenFase SMALLINT;
-    SELECT @OrdenFase = f.orden 
-    FROM partido.Partido p
-    JOIN administracion.Fase_Torneo f ON f.ID = p.ID_Fase
-    WHERE p.ID = @ID_Partido;
-
-    IF @OrdenFase >= 2
-    BEGIN
-        PRINT 'ADVERTENCIA FIFA: El partido pertenece a una fase de eliminación directa (orden >= 2). Verifique posibles cruces futuros de confederación.';
-    END
-
     BEGIN TRANSACTION;
     BEGIN TRY
         INSERT INTO arbitraje.Designacion_Arbitral (ID_Partido, ID_Arbitro, rol, informe)
