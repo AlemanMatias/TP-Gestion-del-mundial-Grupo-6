@@ -12,7 +12,7 @@
      - Pereira, Carlos Manuel
      - Villa, Brenda
      
-   Script: JUEGO_DE_DATOS.sql
+   Script: scripts/JUEGO_DE_DATOS.sql
    Descripción: Script para poblar por completo la base de datos Mundial2026
                 - Delegaciones, planteles, cuerpos técnicos y sedes (01_administracion_y_planteles.sql)
                 - Catálogo comercial y contratos publicitarios (02_catalogo_publicidad.sql)
