@@ -23,4 +23,37 @@
 USE Mundial2026;
 GO
 
--- TODO: Implementar Stored Procedure para este reporte (Salida en XML).
+CREATE OR ALTER PROCEDURE administracion.sp_ReporteSeleccionesPlantillas
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- ====================================================================
+    -- 1. Selecciones + nombre del país (selección)
+    -- ====================================================================
+    SELECT
+        s.ID        AS SeleccionID,
+        p.nombre    AS Nombre,
+
+        -- =================================================================
+        -- 2️.  Plantilla (sub‑XML) para cada selección
+        -- =================================================================
+        (
+            SELECT
+                CONCAT(j.nombre, ' ', j.apellido) AS [Nombre],
+                j.posicion_habitual               AS [Posicion],
+                ISNULL(c.nombre, 'Sin Club')      AS [Club],
+                co.dorsal                         AS [Dorsal]
+            FROM administracion.Convocatoria   co
+            JOIN administracion.Jugador        j  ON co.ID_Jugador = j.ID
+            LEFT JOIN administracion.Club      c  ON j.ID_Club = c.ID
+            WHERE co.ID_Seleccion = s.ID
+            ORDER BY co.dorsal    
+            FOR XML PATH('Jugador'), TYPE
+        ) AS Plantilla
+    FROM administracion.Seleccion s
+    JOIN administracion.Pais      p  ON s.ID_Pais = p.ID
+    ORDER BY s.ID
+    FOR XML PATH('Seleccion'), ROOT('Selecciones');
+END;
+GO
