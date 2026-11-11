@@ -56,9 +56,8 @@ BEGIN
     LEFT JOIN publicidad.Campania             c  ON c.ID  = pc.ID_Campania
     LEFT JOIN publicidad.Anunciante           an ON an.ID = c.ID_Anunciante;
  
-    -- ==========================================================================
-    -- 1) DETALLE POR PARTIDO
-    -- ==========================================================================
+    -- DETALLE POR PARTIDO
+    
     SELECT
         s.nombre                                                   AS sede,
         s.ciudad                                                   AS ciudad,
@@ -86,9 +85,7 @@ BEGIN
     GROUP BY s.nombre, s.ciudad, ps.nombre, p.ID, f.nombre, p.fecha_hora_local, pl.nombre, pv.nombre
     ORDER BY s.nombre, p.fecha_hora_local, p.ID;
  
-    -- ==========================================================================
-    -- 2) RESUMEN POR SEDE
-    -- ==========================================================================
+    -- RESUMEN POR SEDE
     SELECT
         s.nombre                                                   AS sede,
         s.ciudad                                                   AS ciudad,
@@ -107,9 +104,7 @@ BEGIN
     GROUP BY s.ID, s.nombre, s.ciudad, ps.nombre
     ORDER BY ingresos_sede DESC, s.nombre;
  
-    -- ==========================================================================
-    -- 3) RANKING DE ANUNCIANTES POR INGRESOS
-    -- ==========================================================================
+    -- RANKING DE ANUNCIANTES POR INGRESOS
     SELECT
         RANK() OVER (ORDER BY SUM(b.monto_facturado) DESC)         AS posicion,
         b.anunciante                                               AS anunciante,
@@ -121,9 +116,7 @@ BEGIN
     GROUP BY b.ID_Anunciante, b.anunciante
     ORDER BY ingresos_generados DESC, b.anunciante;
  
-    -- ==========================================================================
-    -- 4) TOTAL GENERAL DEL TORNEO
-    -- ==========================================================================
+    -- TOTAL GENERAL DEL TORNEO
     SELECT
         COUNT(DISTINCT b.ID_Partido)                               AS partidos,
         COUNT(DISTINCT b.ID_Partido) * @espacios_por_partido       AS espacios_disponibles,

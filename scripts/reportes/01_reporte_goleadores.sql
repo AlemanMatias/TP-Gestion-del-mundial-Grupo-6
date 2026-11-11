@@ -55,9 +55,9 @@ BEGIN
       AND g.tipo    <> 'En contra'
     GROUP BY g.ID_Jugador_asistencia;
  
-    -- ==========================================================================
-    -- 1) GOLEADORES DEL TORNEO
-    -- ==========================================================================
+    
+    -- GOLEADORES DEL TORNEO
+
     SELECT
         RANK() OVER (ORDER BY COUNT(*) DESC)                       AS posicion,
         j.apellido + ', ' + j.nombre                               AS jugador,
@@ -74,9 +74,7 @@ BEGIN
     GROUP BY gv.ID_Jugador, j.apellido, j.nombre, pa.nombre
     ORDER BY goles DESC, jugador;
  
-    -- ==========================================================================
-    -- 2) GOLEADORES POR SELECCIÓN
-    -- ==========================================================================
+    -- GOLEADORES POR SELECCIÓN
     SELECT
         pa.nombre                                                  AS seleccion,
         RANK() OVER (PARTITION BY gv.ID_Seleccion ORDER BY COUNT(*) DESC) AS posicion_en_seleccion,
@@ -90,9 +88,7 @@ BEGIN
     GROUP BY gv.ID_Seleccion, gv.ID_Jugador, pa.nombre, j.apellido, j.nombre
     ORDER BY pa.nombre, goles DESC, jugador;
  
-    -- ==========================================================================
-    -- 3) GOLEADORES POR FASE DEL TORNEO
-    -- ==========================================================================
+    -- GOLEADORES POR FASE DEL TORNEO
     SELECT
         f.orden                                                    AS orden_fase,
         f.nombre                                                   AS fase,
@@ -108,11 +104,9 @@ BEGIN
     GROUP BY gv.ID_Fase, f.orden, f.nombre, gv.ID_Jugador, j.apellido, j.nombre, pa.nombre
     ORDER BY f.orden, goles DESC, jugador;
  
-    -- ==========================================================================
-    -- 4) RESUMEN DE GOLES POR SELECCIÓN
-    --    Incluye goles en contra del rival acreditados a la selección, para que
-    --    el total coincida con el marcador de los partidos (sin tanda de penales).
-    -- ==========================================================================
+    -- 
+    -- RESUMEN DE GOLES POR SELECCIÓN
+ 
     SELECT
         pa.nombre                                                  AS seleccion,
         SUM(CASE WHEN g.tipo <> 'En contra' THEN 1 ELSE 0 END)     AS goles_de_sus_jugadores,
