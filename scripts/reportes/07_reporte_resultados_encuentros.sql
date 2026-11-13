@@ -24,9 +24,14 @@ USE Mundial2026;
 GO
 
 CREATE OR ALTER PROCEDURE partido.sp_ReporteResultadosEncuentros
+    @ID_Partido INT = NULL -- ID del partido opcional. Si es NULL, lista todos los partidos.
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Validar existencia del partido si fue provisto
+    IF @ID_Partido IS NOT NULL AND NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @ID_Partido)
+        THROW 50051, '(50051) El partido especificado no existe en el sistema.', 1;
 
     -- ====================================================================
     -- 1. FIXTURE DE RESULTADOS
@@ -66,6 +71,7 @@ BEGIN
     ) pen ON pen.ID_Partido = p.ID
     LEFT JOIN arbitraje.Designacion_Arbitral da ON da.ID_Partido = p.ID AND da.rol = 'Árbitro Principal'
     LEFT JOIN arbitraje.Arbitro a ON a.ID = da.ID_Arbitro
+    WHERE (@ID_Partido IS NULL OR p.ID = @ID_Partido)
     ORDER BY p.ID;
 
     -- ====================================================================
@@ -110,6 +116,7 @@ BEGIN
     ) pen ON pen.ID_Partido = p.ID
     LEFT JOIN arbitraje.Designacion_Arbitral da ON da.ID_Partido = p.ID AND da.rol = 'Árbitro Principal'
     LEFT JOIN arbitraje.Arbitro a ON a.ID = da.ID_Arbitro
+    WHERE (@ID_Partido IS NULL OR p.ID = @ID_Partido)
     ORDER BY p.ID
     FOR XML PATH('Encuentro'), ROOT('ResultadosEncuentros');
 END;

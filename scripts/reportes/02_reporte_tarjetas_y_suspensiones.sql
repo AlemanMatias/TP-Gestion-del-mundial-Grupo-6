@@ -30,9 +30,25 @@ GO
 
 
 CREATE OR ALTER PROCEDURE partido.sp_ReporteTarjetasYSuspensiones
+    @Codigo_ISO CHAR(3) = NULL -- Código ISO de la selección (ej: 'ARG'). Si es NULL, devuelve todas las selecciones.
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Normalizar y validar parámetro si fue provisto
+    SET @Codigo_ISO = NULLIF(UPPER(LTRIM(RTRIM(@Codigo_ISO))), '');
+
+    DECLARE @ID_Seleccion_Filtro INT = NULL;
+    IF @Codigo_ISO IS NOT NULL
+    BEGIN
+        SELECT TOP 1 @ID_Seleccion_Filtro = s.ID
+        FROM administracion.Seleccion s
+        JOIN administracion.Pais p ON p.ID = s.ID_Pais
+        WHERE p.codigo_iso = @Codigo_ISO;
+
+        IF @ID_Seleccion_Filtro IS NULL
+            THROW 50050, '(50050) El código ISO especificado no corresponde a ninguna selección registrada.', 1;
+    END;
 
     SELECT 
         p_pais.nombre AS Seleccion,
@@ -52,7 +68,7 @@ BEGIN
     LEFT JOIN (
         SELECT 
             t.ID_Jugador,
-            SUM(CASE WHEN t.tipo = 'Amarilla' AND (t.es_doble_amarilla = 0 OR t.es_doble_amarilla IS NULL) THEN 1 ELSE 0 END) AS amarillas,
+            SUM(CASE WHEN t.tipo = 'Amarilla' THEN 1 ELSE 0 END) AS amarillas,
             SUM(CASE WHEN t.tipo = 'Roja' OR t.es_doble_amarilla = 1 THEN 1 ELSE 0 END) AS rojas
         FROM partido.Tarjeta t
         WHERE t.ID_Jugador IS NOT NULL
@@ -62,9 +78,10 @@ BEGIN
 
     -- Información de suspensiones vigentes o registradas
     LEFT JOIN partido.Suspension s ON j.ID = s.ID_Jugador
-    WHERE tarjetas_resumen.amarillas > 0 
-       OR tarjetas_resumen.rojas > 0 
-       OR s.ID IS NOT NULL
+    WHERE (@ID_Seleccion_Filtro IS NULL OR sel.ID = @ID_Seleccion_Filtro)
+      AND (tarjetas_resumen.amarillas > 0 
+           OR tarjetas_resumen.rojas > 0 
+           OR s.ID IS NOT NULL)
     ORDER BY p_pais.nombre, j.apellido, j.nombre;
 
 END

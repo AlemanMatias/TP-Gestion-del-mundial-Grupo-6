@@ -22,11 +22,15 @@
 USE Mundial2026;
 GO
 
--- TODO: Implementar Stored Procedure para este reporte.
 CREATE OR ALTER PROCEDURE publicidad.sp_ReporteOcupacionPublicitaria
+    @ID_Partido INT = NULL -- ID del partido opcional. Si es NULL, lista todos los partidos.
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Validar existencia del partido si fue provisto
+    IF @ID_Partido IS NOT NULL AND NOT EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @ID_Partido)
+        THROW 50051, '(50051) El partido especificado no existe en el sistema.', 1;
  
     DECLARE @espacios_por_partido INT = 4;   -- regla de negocio: 4 espacios simultáneos por partido
  
@@ -82,6 +86,7 @@ BEGIN
     JOIN administracion.Pais        pl ON pl.ID = sl.ID_Pais
     JOIN administracion.Seleccion   sv ON sv.ID = p.ID_Seleccion_Visitante
     JOIN administracion.Pais        pv ON pv.ID = sv.ID_Pais
+    WHERE (@ID_Partido IS NULL OR b.ID_Partido = @ID_Partido)
     GROUP BY s.nombre, s.ciudad, ps.nombre, p.ID, f.nombre, p.fecha_hora_local, pl.nombre, pv.nombre
     ORDER BY s.nombre, p.fecha_hora_local, p.ID;
  

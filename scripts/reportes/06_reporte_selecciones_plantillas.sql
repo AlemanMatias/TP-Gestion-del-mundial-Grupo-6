@@ -24,9 +24,25 @@ USE Mundial2026;
 GO
 
 CREATE OR ALTER PROCEDURE administracion.sp_ReporteSeleccionesPlantillas
+    @Codigo_ISO CHAR(3) = NULL -- Código ISO de la selección (ej: 'ARG'). Si es NULL, devuelve todas las selecciones.
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Normalizar y validar parámetro si fue provisto
+    SET @Codigo_ISO = NULLIF(UPPER(LTRIM(RTRIM(@Codigo_ISO))), '');
+
+    DECLARE @ID_Seleccion_Filtro INT = NULL;
+    IF @Codigo_ISO IS NOT NULL
+    BEGIN
+        SELECT TOP 1 @ID_Seleccion_Filtro = s.ID
+        FROM administracion.Seleccion s
+        JOIN administracion.Pais p ON p.ID = s.ID_Pais
+        WHERE p.codigo_iso = @Codigo_ISO;
+
+        IF @ID_Seleccion_Filtro IS NULL
+            THROW 50050, '(50050) El código ISO especificado no corresponde a ninguna selección registrada.', 1;
+    END;
 
     -- ====================================================================
     -- 1. Selecciones + nombre del país (selección)
@@ -48,11 +64,13 @@ BEGIN
             JOIN administracion.Jugador        j  ON co.ID_Jugador = j.ID
             LEFT JOIN administracion.Club      c  ON j.ID_Club = c.ID
             WHERE co.ID_Seleccion = s.ID
+              AND co.estado = 1
             ORDER BY co.dorsal    
             FOR XML PATH('Jugador'), TYPE
         ) AS Plantilla
     FROM administracion.Seleccion s
     JOIN administracion.Pais      p  ON s.ID_Pais = p.ID
+    WHERE (@ID_Seleccion_Filtro IS NULL OR s.ID = @ID_Seleccion_Filtro)
     ORDER BY s.ID
     FOR XML PATH('Seleccion'), ROOT('Selecciones');
 END;

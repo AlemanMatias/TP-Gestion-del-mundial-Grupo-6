@@ -23,9 +23,25 @@ USE Mundial2026;
 GO
 
 CREATE OR ALTER PROCEDURE partido.sp_ReporteGoleadores
+    @Codigo_ISO CHAR(3) = NULL -- Código ISO de la selección (ej: 'ARG'). Si es NULL, devuelve todo el torneo.
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Normalizar y validar parámetro si fue provisto
+    SET @Codigo_ISO = NULLIF(UPPER(LTRIM(RTRIM(@Codigo_ISO))), '');
+
+    DECLARE @ID_Seleccion_Filtro INT = NULL;
+    IF @Codigo_ISO IS NOT NULL
+    BEGIN
+        SELECT TOP 1 @ID_Seleccion_Filtro = s.ID
+        FROM administracion.Seleccion s
+        JOIN administracion.Pais p ON p.ID = s.ID_Pais
+        WHERE p.codigo_iso = @Codigo_ISO;
+
+        IF @ID_Seleccion_Filtro IS NULL
+            THROW 50050, '(50050) El código ISO especificado no corresponde a ninguna selección registrada.', 1;
+    END;
  
     -- Goles válidos para el ranking de goleadores (sin tanda de penales ni goles en contra)
     DROP TABLE IF EXISTS #GolesValidos;
@@ -43,7 +59,8 @@ BEGIN
     FROM partido.Gol g
     JOIN partido.Partido p ON p.ID = g.ID_Partido
     WHERE g.periodo <> 'Definición por penales'
-      AND g.tipo    <> 'En contra';
+      AND g.tipo    <> 'En contra'
+      AND (@ID_Seleccion_Filtro IS NULL OR g.ID_Seleccion = @ID_Seleccion_Filtro);
  
     -- Asistencias por jugador (solo sobre goles válidos)
     DROP TABLE IF EXISTS #Asistencias;
@@ -53,6 +70,7 @@ BEGIN
     WHERE g.ID_Jugador_asistencia IS NOT NULL
       AND g.periodo <> 'Definición por penales'
       AND g.tipo    <> 'En contra'
+      AND (@ID_Seleccion_Filtro IS NULL OR g.ID_Seleccion = @ID_Seleccion_Filtro)
     GROUP BY g.ID_Jugador_asistencia;
  
     
@@ -116,6 +134,7 @@ BEGIN
     JOIN administracion.Seleccion s  ON s.ID  = g.ID_Seleccion
     JOIN administracion.Pais      pa ON pa.ID = s.ID_Pais
     WHERE g.periodo <> 'Definición por penales'
+      AND (@ID_Seleccion_Filtro IS NULL OR g.ID_Seleccion = @ID_Seleccion_Filtro)
     GROUP BY g.ID_Seleccion, pa.nombre
     ORDER BY goles_totales DESC, pa.nombre;
  

@@ -26,6 +26,7 @@ GO
 -- ====================================================================
 PRINT '>>> [01] GOLEADORES POR SELECCIÓN, FASE Y TORNEO';
 -- EXEC partido.sp_ReporteGoleadores;
+-- EXEC partido.sp_ReporteGoleadores @Codigo_ISO = 'ARG';
 GO
 
 -- ====================================================================
@@ -34,6 +35,7 @@ GO
 -- ====================================================================
 PRINT '>>> [02] TARJETAS Y SUSPENSIONES ACTIVAS POR ACUMULACIÓN';
 -- EXEC partido.sp_ReporteTarjetasYSuspensiones;
+-- EXEC partido.sp_ReporteTarjetasYSuspensiones @Codigo_ISO = 'ARG';
 GO
 
 -- ====================================================================
@@ -50,6 +52,7 @@ GO
 -- ====================================================================
 PRINT '>>> [04] OCUPACIÓN PUBLICITARIA E INGRESOS GENERADOS';
 -- EXEC publicidad.sp_ReporteOcupacionPublicitaria;
+-- EXEC publicidad.sp_ReporteOcupacionPublicitaria @ID_Partido = 1;
 GO
 
 -- ====================================================================
@@ -66,6 +69,7 @@ GO
 -- ====================================================================
 PRINT '>>> [06] SELECCIONES Y PLANTILLAS';
 -- EXEC administracion.sp_ReporteSeleccionesPlantillas;
+ --EXEC administracion.sp_ReporteSeleccionesPlantillas @Codigo_ISO = 'ARG';
 GO
 
 -- ====================================================================
@@ -74,4 +78,5 @@ GO
 -- ====================================================================
 PRINT '>>> [07] RESULTADOS DE LOS ENCUENTROS';
 -- EXEC partido.sp_ReporteResultadosEncuentros;
+--EXEC partido.sp_ReporteResultadosEncuentros @ID_Partido = 1;
 GO

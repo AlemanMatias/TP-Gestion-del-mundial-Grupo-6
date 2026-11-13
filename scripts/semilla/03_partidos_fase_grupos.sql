@@ -223,9 +223,9 @@ EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_partido, @ID_Jugad
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_can AND dorsal = 4 AND estado = 1;
 EXEC partido.sp_RegistrarGol @ID_Partido = @id_partido, @ID_Jugador_autor = @j1, @ID_Jugador_asistencia = NULL, @ID_Seleccion = @sel_arg, @Minuto = 38, @Tipo = 'En contra', @Periodo = 'Primer Tiempo';
 
--- Min 70: 2da Amarilla y expulsión por DOBLE AMARILLA a Nicolás Otamendi (#19 ARG)
+-- Min 70: 2da Amarilla y expulsión por DOBLE AMARILLA a Nicolás Otamendi (#19 ARG) (detectada automáticamente por el SP)
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_arg AND dorsal = 19 AND estado = 1;
-EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_partido, @ID_Jugador = @j1, @Minuto = 70, @Motivo = 'Infracción reiterada', @Tipo = 'AMARILLA', @Es_Doble_Amarilla = 1;
+EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_partido, @ID_Jugador = @j1, @Minuto = 70, @Motivo = 'Infracción reiterada', @Tipo = 'AMARILLA';
 
 -- Min 73: Gol de Julián Álvarez (#9 ARG) con asistencia de Alexis Mac Allister (#20 ARG)
 SELECT @j1 = ID_Jugador FROM administracion.Convocatoria WHERE ID_Seleccion = @sel_arg AND dorsal = 9  AND estado = 1;
@@ -528,7 +528,7 @@ SELECT @id_partido = ID FROM partido.Partido WHERE ID_Fase = @fase_grupos AND ID
 EXEC arbitraje.sp_AuxDesignarArbitrosPartido @id_partido = @id_partido, @id_arbitro_principal = @id_arb_principal OUTPUT;
 
 -- Cargar planillas (Otamendi #19 queda afuera por suspensión de doble amarilla: Argentina presenta 25 jugadores y Lisandro #6 entra al 11 titular)
-EXEC partido.sp_AuxCargarPlanillaEquipo @id_partido = @id_partido, @id_seleccion = @sel_arg, @esquema = '4-3-3', @dorsales_titulares = '23,4,13,19,3,7,5,20,10,9,22,6';
+EXEC partido.sp_AuxCargarPlanillaEquipo @id_partido = @id_partido, @id_seleccion = @sel_arg, @esquema = '4-3-3', @dorsales_titulares = '23,4,13,6,3,7,5,20,10,9,22';
 EXEC partido.sp_AuxCargarPlanillaEquipo @id_partido = @id_partido, @id_seleccion = @sel_nzl, @esquema = '5-4-1';
 
 -- Prueba de validación: intentar alinear a Otamendi (#19 ARG) estando suspendido

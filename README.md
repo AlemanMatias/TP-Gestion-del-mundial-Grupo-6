@@ -96,8 +96,8 @@ El sistema integra fuentes de datos heterogéneas para alimentar el catálogo in
 * **Integración con APIs (`09_b_sp_importacion_APIs.sql`):** 
   * *Banco Mundial:* Importacion de PBI per cápita.
   * *Open-Meteo Geocoding:* Obtención de coordenadas (latitud y longitud) para cada sede según su ciudad.
-* **Nóminas Oficiales y Clubes (`11_sp_importar_jugadores_clubes.sql`):** Ingesta masiva de 1.248 futbolistas y normalización de 450 clubes desde `SquadLists.csv`.
-* **Web Scraping Arbitral (`12_sp_importar_arbitros.sql`):** Extracción del historial de árbitros desde Wikipedia con Python (`importacionarbitros.py`), exportación a `arbitros.csv`.
+* **Nóminas Oficiales y Clubes (`11_sp_importar_jugadores_clubes.sql`):** Importacion masiva de 1.248 futbolistas y 450 clubes desde `SquadLists.csv`.
+* **Scraping Arbitros (`12_sp_importar_arbitros.sql`):** Extracción del historial de árbitros desde Wikipedia con Python (`importacionarbitros.py`), exportación a `arbitros.csv`.
 
 ---
 
