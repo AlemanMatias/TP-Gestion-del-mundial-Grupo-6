@@ -46,6 +46,22 @@ PRINT '======================================================================';
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_p1 INT, @id_p2 INT, @id_p3 INT, @id_p4 INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Test Part 1', @pbi_percapita = 25000, @huso_horario = '-06:00', @id_generado = @id_p1 OUTPUT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Test Part 2', @pbi_percapita = 28000, @huso_horario = '-03:00', @id_generado = @id_p2 OUTPUT;
@@ -247,6 +263,22 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_p_f1 INT, @id_p_f2 INT, @id_p_f3 INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Form 1', @id_generado = @id_p_f1 OUTPUT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Form 2', @id_generado = @id_p_f2 OUTPUT;
@@ -359,6 +391,22 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_p_al1 INT, @id_p_al2 INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Alineacion 1', @id_generado = @id_p_al1 OUTPUT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Alineacion 2', @id_generado = @id_p_al2 OUTPUT;
@@ -538,6 +586,22 @@ ROLLBACK TRANSACTION;
 -- ==============================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_p_su1 INT, @id_p_su2 INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Sustitucion 1', @id_generado = @id_p_su1 OUTPUT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Sustitucion 2', @id_generado = @id_p_su2 OUTPUT;

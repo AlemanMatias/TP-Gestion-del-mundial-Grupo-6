@@ -284,6 +284,22 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_pais_sel INT, @id_sel_test INT;
 
     EXEC administracion.sp_InsertarPais @nombre = 'País Selección Test', @pbi_percapita = 30000, @huso_horario = '+00:00', @id_generado = @id_pais_sel OUTPUT;
@@ -340,6 +356,22 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_pais_ct INT, @id_sel_ct INT;
     DECLARE @id_dt_test INT, @id_ayudante_test INT;
 
@@ -458,6 +490,22 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_pais_conv INT, @id_sel_conv INT, @id_club_conv INT;
     DECLARE @id_arq INT, @id_del INT, @id_reemplazo INT;
     DECLARE @id_conv INT, @id_conv_reemplazo INT;

@@ -22,7 +22,10 @@ USE Mundial2026;
 GO
 
 -- Acá hay que poner la ruta propia de cada uno
-DECLARE @ruta_dataset VARCHAR(500) = 'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\countries.json';
+DECLARE @dir_datasets VARCHAR(500) = '..\..\datasets';
+IF OBJECT_ID('administracion.fn_RutaDatasets', 'FN') IS NOT NULL
+    SET @dir_datasets = administracion.fn_RutaDatasets();
+DECLARE @ruta_dataset VARCHAR(500) = @dir_datasets + '\countries.json';
 EXEC administracion.sp_ImportarPaisesJSON @ruta_archivo = @ruta_dataset;
 -- SELECT * FROM administracion.Pais
 
@@ -46,7 +49,7 @@ END
 
 -- 1. Definir la ruta del archivo de pruebas mixtas (con errores y aciertos)
 -- Acá hay que poner la ruta de cada uno
-DECLARE @RutaCSVPrueba VARCHAR(500) = 'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\arbitros.csv';
+DECLARE @RutaCSVPrueba VARCHAR(500) = @dir_datasets + '\arbitros.csv';
 
 PRINT '>>> Ejecutando primera importación (Éxitos y Errores)...';
 -- Nota: Si el SP del CSV tira un THROW general por archivo vacío o ruta, lo 'atrapamos' abajo.

@@ -227,6 +227,23 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Fase_Torneo;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     -- Insertamos un país extra primero para desfasar ID_Pais respecto de ID_Seleccion y probar el JOIN real
     DECLARE @id_pais_extra INT, @id_pais_loc INT, @id_pais_vis INT, @id_pais_neu INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Desfasaje Test', @id_generado = @id_pais_extra OUTPUT;
@@ -369,6 +386,23 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Fase_Torneo;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_pg1 INT, @id_pg2 INT, @id_pg3 INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Gol Local', @id_generado = @id_pg1 OUTPUT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Gol Visita', @id_generado = @id_pg2 OUTPUT;
@@ -653,6 +687,23 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Fase_Torneo;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     DECLARE @id_pt1 INT, @id_pt2 INT, @id_pt3 INT, @id_pt4 INT, @id_pt5 INT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Tarjeta 1', @id_generado = @id_pt1 OUTPUT;
     EXEC administracion.sp_InsertarPais @nombre = 'Pais Tarjeta 2', @id_generado = @id_pt2 OUTPUT;
@@ -728,8 +779,7 @@ BEGIN TRY
         @ID_Jugador = @jt_acum,
         @Minuto = 35,
         @Motivo = 'Sujeción reiterada',
-        @Tipo = 'AMARILLA',
-        @Es_Doble_Amarilla = 0;
+        @Tipo = 'AMARILLA';
 
     IF EXISTS (SELECT 1 FROM partido.Tarjeta WHERE ID_Partido = @id_part_f1 AND ID_Jugador = @jt_acum AND tipo = 'AMARILLA')
        AND NOT EXISTS (SELECT 1 FROM partido.Suspension WHERE ID_Jugador = @jt_acum)
@@ -744,7 +794,6 @@ BEGIN TRY
         @Minuto = 70,
         @Motivo = 'Entrada tardía',
         @Tipo = 'AMARILLA',
-        @Es_Doble_Amarilla = 0,
         @Partidos_Suspension = 1;
 
     DECLARE @id_susp_acum INT;
@@ -792,14 +841,20 @@ BEGIN TRY
     ELSE
         INSERT INTO @Reporte VALUES ('sp_RegistrarCumplimientoSuspension', 'Descuento de fecha y rehabilitación en partido posterior', 'Caso de Éxito', 'FALLÓ', 'No se descontó la fecha o no permitió alinear.');
 
-    -- 4.F. Expulsión por doble amarilla en el mismo partido
+    -- 4.F. Expulsión por doble amarilla en el mismo partido (detección automática del SP sin pasar @Es_Doble_Amarilla)
+    EXEC partido.sp_RegistrarTarjetaYSuspension
+        @ID_Partido = @id_part_f1,
+        @ID_Jugador = @jt_doble,
+        @Minuto = 30,
+        @Motivo = 'Primera amonestación por falta táctica',
+        @Tipo = 'AMARILLA';
+
     EXEC partido.sp_RegistrarTarjetaYSuspension
         @ID_Partido = @id_part_f1,
         @ID_Jugador = @jt_doble,
         @Minuto = 80,
         @Motivo = 'Segunda amonestación por cortar avance',
         @Tipo = 'AMARILLA',
-        @Es_Doble_Amarilla = 1,
         @Partidos_Suspension = 1;
 
     IF EXISTS (SELECT 1 FROM partido.Suspension WHERE ID_Jugador = @jt_doble AND ID_Partido = @id_part_f1)
@@ -814,7 +869,6 @@ BEGIN TRY
         @Minuto = 89,
         @Motivo = 'Juego brusco grave',
         @Tipo = 'ROJA',
-        @Es_Doble_Amarilla = 0,
         @Partidos_Suspension = 2;
 
     DECLARE @id_susp_roja INT;
@@ -947,6 +1001,19 @@ BEGIN TRY
             INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Validación múltiple: sin destinatario + min>140 + tipo inválido', 'Caso de Falla Múltiple', 'OK', ERROR_MESSAGE());
         ELSE
             INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Validación múltiple: sin destinatario + min>140 + tipo inválido', 'Caso de Falla Múltiple', 'FALLÓ', 'No acumuló todos: ' + ERROR_MESSAGE());
+    END CATCH;
+
+    -- 4.P. Error 50044: Bloqueo de tarjeta a jugador previamente expulsado en el mismo partido
+    BEGIN TRY
+        -- @jt_doble ya fue expulsado por doble amarilla en el partido @id_part_f1 en el test 4.F
+        EXEC partido.sp_RegistrarTarjetaYSuspension @ID_Partido = @id_part_f1, @ID_Jugador = @jt_doble, @Minuto = 85, @Motivo = 'Intento de amonestar a un expulsado', @Tipo = 'AMARILLA';
+        INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tarjeta a jugador ya expulsado en el partido', 'Caso de Falla', 'FALLÓ', 'Debió arrojar 50044');
+    END TRY
+    BEGIN CATCH
+        IF ERROR_NUMBER() = 50044
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tarjeta a jugador ya expulsado en el partido', 'Caso de Falla', 'OK', ERROR_MESSAGE());
+        ELSE
+            INSERT INTO @Reporte VALUES ('sp_RegistrarTarjetaYSuspension', 'Bloqueo tarjeta a jugador ya expulsado en el partido', 'Caso de Falla', 'FALLÓ', 'Error inesperado: ' + CAST(ERROR_NUMBER() AS VARCHAR));
     END CATCH;
 
 END TRY

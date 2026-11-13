@@ -24,13 +24,17 @@ USE Mundial2026;
 GO
  
 /* ==========================================================================
-   TEST 0 - CONFIGURACIÓN (EDITAR RUTAS)
+   TEST 0 - CONFIGURACION (RUTAS DINAMICAS VIA FUNCION ADMINISTRACION.fn_RutaDatasets)
    ========================================================================== */
+DECLARE @dir_datasets VARCHAR(500) = '..\..\datasets';
+IF OBJECT_ID('administracion.fn_RutaDatasets', 'FN') IS NOT NULL
+    SET @dir_datasets = administracion.fn_RutaDatasets();
+
 IF OBJECT_ID('tempdb..#cfg') IS NOT NULL DROP TABLE #cfg;
 CREATE TABLE #cfg (clave VARCHAR(30) PRIMARY KEY, valor VARCHAR(500) NOT NULL);
 INSERT INTO #cfg (clave, valor) VALUES
-    ('csv_ok',       'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\SquadLists.csv'),
-    ('csv_errores',  'G:\UNLaM\Cursando\bases de datos aplicadas\TP_GRUPAL\Gestion-del-mundial-tp\datasets\SquadLists_errores.csv');
+    ('csv_ok',       @dir_datasets + '\SquadLists.csv'),
+    ('csv_errores',  @dir_datasets + '\SquadLists_errores.csv');
 GO
  
 /* ==========================================================================

@@ -30,81 +30,60 @@ Este proyecto implementa un sistema integral de base de datos relacional para la
 ```text
 ├── datasets/
 │   ├── SquadLists.csv                      # Plantillas oficiales (1.248 jugadores de 48 selecciones)
-│   ├── SquadLists_errores.csv              # Dataset de prueba con errores controlados (9 filas)
-│   ├── arbitros.csv                        # Nómina scrapeada de árbitros principales y asistentes
-│   ├── companies.csv                       # Empresas y anunciantes comerciales
-│   └── countries.json                      # Catálogo global de países, husos horarios y capitales
+│   ├── SquadLists_errores.csv              # Dataset de prueba con errores controlados
+│   ├── arbitros.csv                        # Catálogo de árbitros 
+│   └── countries.json                      # Catálogo de países
 ├── docs/
 │   ├── der/                          
 │   │   ├── README.md                       # Especificación del modelo relacional
 │   │   ├── der_v1.2.jpg                    # Diagrama Entidad-Relación actualizado (v1.2)
 │   │   └── der_v1.2_dbdiagram.txt          # Código fuente DBML para dbdiagram.io
-│   ├── Informe integracion APIs Externas.pdf # Documentación de consumo de APIs REST
+│   ├── Informe integracion APIs Externas.pdf # Documentación de consumo de APIs
 │   ├── Informe Web Scraping.pdf            # Documentación técnica de extracción en Python
 │   └── Instalación_y_Configuración.pdf     # Parámetros del motor e infraestructura
 ├── python/
 │   └── importacionarbitros.py              # Script de Web Scraping
 ├── scripts/
-│   ├── 00_borrado_base_de_datos.sql
-│   ├── 01_creacion_base_de_datos.sql
-│   ├── 02_creacion_esquemas.sql
-│   ├── 03_creacion_tablas.sql
-│   ├── 04_sp_administracion.sql
-│   ├── 05_sp_partidos_y_cambios.sql
-│   ├── 06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql
-│   ├── 07_sp_publicidad.sql
-│   ├── 08_tablas_importacion.sql           # Infraestructura DDL: tabla dbo.LogImportacion
-│   ├── 09_sp_importacion_paises.sql        # Importación JSON
-│   ├── 09_b_sp_importacion_APIs.sql        # Consumo de APIs(Banco Mundial y Geolocalización)
-│   ├── 11_sp_importar_jugadores_clubes.sql # Importación CSV
-│   ├── 12_sp_importar_arbitros.sql         # Importación CSV
-│   └── RECREAR_BASE.sql                    # Script para recrear la base de datos
+│   ├── 00..03: Creación de base de datos, esquemas y tablas relacionales (DDL)
+│   ├── 04..07: Stored Procedures de negocio y lógica operativa (ABMs)
+│   ├── 08..12: Stored Procedures de importación masiva (JSON, CSV, APIs REST)
+│   ├── reportes/                           # Stored Procedures para reportes analíticos
+│   ├── semilla/                            # Scripts de carga y simulación del torneo
+│   ├── RECREAR_BASE.sql                    # Script para recrear la base y compilar todos los SPs
+│   ├── JUEGO_DE_DATOS.sql                  # Script para poblar la base y disputar los partidos
+│   └── REPORTES.sql                        # Script para ejecución individual de reportes analíticos
 ├── tests/
-│   ├── test_04_administracion.sql
-│   ├── test_05_partidos_y_cambios.sql
-│   ├── test_06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql
-│   ├── test_07_publicidad.sql
-│   ├── test_09_importacion_paises.sql
-│   ├── test_09_b_importacion_APIs.sql
-│   ├── test_11_importacion_jugadores_clubes.sql
-│   └── test_12_importacion_arbitros.sql
+│   └── Scripts de testing para cada módulo
 ├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 🚀 Guía de Instalación y Recreación desde Cero
+## 🚀 Guía de Instalación y Población de Datos
 
-Se establecen **dos formas** de crear y compilar toda la base de datos desde cero:
-
-### Opción A (RECOMENDADO): Recreación Automática en 1 Clic `RECREAR_BASE.sql`
+### Paso 1: Recreación de la Base de Datos (`RECREAR_BASE.sql`)
 1. Abrir el archivo **`scripts/RECREAR_BASE.sql`** en SSMS.
-2. Actualizar en la línea `:setvar ScriptsDir "..."` la ruta de la carpeta `scripts` en su equipo.
+2. Actualizar en la línea `:setvar RepoDir "..."` la ruta absoluta a la raíz del repositorio en su equipo.
 3. En el menú superior de SSMS, activar **Consulta (Query) $\rightarrow$ Modo SQLCMD (SQLCMD Mode)**.
 4. Presionar **F5 (Ejecutar)**. El script ejecutará automáticamente en orden:
    * El borrado previo de cualquier versión anterior (`00`).
    * La creación de la base de datos `Mundial2026` (`01`).
    * Los 4 esquemas funcionales (`02`).
-   * Las 25 tablas  (`03`).
-   * Los 4 módulos de Stored Procedures (`04`, `05`, `06`, `07`).
-   * Los scripts de importacion de datos externos
+   * Las 25 tablas relacionales con restricciones e índices (`03`).
+   * Los Stored Procedures de negocio (`04`, `05`, `06`, `07`).
+   * La infraestructura y procedimientos de importación masiva (`08`, `09`, `09_b`, `11`, `12`).
+   * Los procedimientos de reportes analíticos (`reportes/`).
 
-### Opción B: Ejecución Manual Paso a Paso
-Ejecutar los scripts ubicados en `scripts/` respetando el siguiente **orden secuencial de dependencias**:
-
-1. **`01_creacion_base_de_datos.sql`**: Crea desde cero la base de datos `Mundial2026`.
-2. **`02_creacion_esquemas.sql`**: Crea los 4 esquemas funcionales (`administracion`, `partido`, `arbitraje`, `publicidad`).
-3. **`03_creacion_tablas.sql`**: Crea las 25 tablas relacionales con sus restricciones e índices.
-4. **`04_sp_administracion.sql`**: Compila los Stored Procedures del Módulo 1 (Administración y Convocatorias).
-5. **`05_sp_partidos_y_cambios.sql`**: Compila los Stored Procedures del Módulo 2 (Partidos, Formaciones, Alineaciones y Sustituciones).
-6. **`06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql`**: Compila los Stored Procedures del Módulo 3 (Árbitros, Designaciones, Goles, Tarjetas y Suspensiones).
-7. **`07_sp_publicidad.sql`**: Compila los Stored Procedures del Módulo 4 (Anunciantes, Campañas, Piezas, Mercados Objetivo y asignación de publicidad).
-8. **`08_tablas_importacion.sql`**: Crea la tabla centralizada de auditoría y trazabilidad `dbo.LogImportacion`.
-9. **`09_sp_importacion_paises.sql`**: Compila los Stored Procedures para ingesta masiva de países desde JSON (`OPENJSON`).
-10. **`09_b_sp_importacion_APIs.sql`**: Habilita OLE Automation y compila los procedimientos para consumo de APIs REST en vivo (Banco Mundial y Open-Meteo).
-11. **`11_sp_importar_jugadores_clubes.sql`**: Compila el Stored Procedure de ingesta masiva de jugadores y clubes desde CSV (`BULK INSERT`).
-12. **`12_sp_importar_arbitros.sql`**: Compila el Stored Procedure de ingesta masiva de árbitros y asistentes desde CSV.
+### Paso 2: Semilla   (`JUEGO_DE_DATOS.sql`)
+1. Abrir el archivo **`scripts/JUEGO_DE_DATOS.sql`** en SSMS.
+2. Actualizar en la línea `:setvar RepoDir "..."` la ruta absoluta a la raíz del repositorio en su equipo.
+3. En el menú superior de SSMS, activar **Consulta (Query) $\rightarrow$ Modo SQLCMD (SQLCMD Mode)**.
+4. Presionar **F5 (Ejecutar)**. El script ejecutará automáticamente en orden:
+   * Delegaciones oficiales, cuerpos técnicos, sedes y convocatorias (`01_administracion_y_planteles.sql`).
+   * Catálogo comercial, tarifas, contratos y anunciantes (`02_catalogo_publicidad.sql`).
+   * Disputa de la Fase de Grupos - Partidos 1 al 16 (`03_partidos_fase_grupos.sql`).
+   * Fases Eliminatorias, definiciones por penales y Gran Final - Partidos 17 al 26 (`04_partidos_fase_final.sql`).
 
 
 ---
@@ -117,8 +96,8 @@ El sistema integra fuentes de datos heterogéneas para alimentar el catálogo in
 * **Integración con APIs (`09_b_sp_importacion_APIs.sql`):** 
   * *Banco Mundial:* Importacion de PBI per cápita.
   * *Open-Meteo Geocoding:* Obtención de coordenadas (latitud y longitud) para cada sede según su ciudad.
-* **Nóminas Oficiales y Clubes (`11_sp_importar_jugadores_clubes.sql`):** Ingesta masiva de 1.248 futbolistas y normalización de 450 clubes desde `SquadLists.csv`.
-* **Web Scraping Arbitral (`12_sp_importar_arbitros.sql`):** Extracción del historial de árbitros desde Wikipedia con Python (`importacionarbitros.py`), exportación a `arbitros.csv`.
+* **Nóminas Oficiales y Clubes (`11_sp_importar_jugadores_clubes.sql`):** Importacion masiva de 1.248 futbolistas y 450 clubes desde `SquadLists.csv`.
+* **Scraping Arbitros (`12_sp_importar_arbitros.sql`):** Extracción del historial de árbitros desde Wikipedia con Python (`importacionarbitros.py`), exportación a `arbitros.csv`.
 
 ---
 
@@ -130,26 +109,6 @@ Cada uno de los 4 archivos de Stored Procedures cuenta con su correspondiente sc
 > * Cada script de prueba construye su propio contexto de datos invocando exclusivamente los Stored Procedures del sistema.
 > * Todas las pruebas se ejecutan dentro de bloques transaccionales que revierten sus cambios al finalizar, dejando la base de datos completamente limpia y permitiendo re-ejecutar cualquier test en cualquier momento.
 > 
-
-
-
-
----
-
-## ⚙️ Configuración de Rutas Locales
-
-Se debe ajustar las rutas locales en los siguientes scripts antes de ejecutarlos:
-
-| Archivo a Modificar | Línea(s) | Parámetro / Clave | Archivo o Carpeta a Indicar |
-| :--- | :---: | :--- | :--- |
-| **`scripts/RECREAR_BASE.sql`** | **32** | `:setvar ScriptsDir` | Ruta absoluta a la carpeta local **`scripts\`** |
-| **`tests/test_09_importacion_paises.sql`** | **37** | `@ruta_dataset` | Ruta al archivo **`datasets\countries.json`** |
-| **`tests/test_11_importacion_jugadores_clubes.sql`** | **32** | `'csv_ok'` | Ruta al archivo **`datasets\SquadLists.csv`** |
-| **`tests/test_11_importacion_jugadores_clubes.sql`** | **33** | `'csv_errores'` | Ruta al archivo **`datasets\SquadLists_errores.csv`** |
-| **`tests/test_12_importacion_arbitros.sql`** | **25** | `@ruta_dataset` | Ruta al archivo **`datasets\countries.json`** *(catálogo base de países)* |
-| **`tests/test_12_importacion_arbitros.sql`** | **49** | `@RutaCSVPrueba` | Ruta al archivo **`datasets\arbitros.csv`** *(nómina de árbitros)* |
-
-> 💡 **Nota:** El script de pruebas de integración con APIs (`tests/test_09_b_importacion_APIs.sql`) consulta directamente los servicios web en vivo mediante HTTP/HTTPS, por lo que **no requiere configurar rutas de archivos locales**.
 
 ---
 

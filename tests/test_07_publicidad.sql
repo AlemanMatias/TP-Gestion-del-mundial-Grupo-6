@@ -478,6 +478,25 @@ ROLLBACK TRANSACTION;
 -- =========================================================================================
 BEGIN TRANSACTION;
 BEGIN TRY
+    -- Aislar de datos semilla y piezas publicitarias preexistentes (se revierte con el ROLLBACK del bloque)
+    DELETE FROM publicidad.Exhibicion;
+    DELETE FROM publicidad.Espacio_publicitario;
+    DELETE FROM publicidad.Pieza_Pais_Interes;
+    DELETE FROM publicidad.Pieza_Contenido;
+    DELETE FROM partido.Partido_Perdido_Suspension;
+    DELETE FROM partido.Suspension;
+    DELETE FROM partido.Tarjeta;
+    DELETE FROM partido.Gol;
+    DELETE FROM partido.Sustitucion;
+    DELETE FROM partido.Alineacion;
+    DELETE FROM partido.Formacion_Partido;
+    DELETE FROM arbitraje.Designacion_Arbitral;
+    DELETE FROM partido.Partido;
+    DELETE FROM administracion.Fase_Torneo;
+    DELETE FROM administracion.Convocatoria;
+    DELETE FROM administracion.Miembro_Cuerpo_Tecnico;
+    DELETE FROM administracion.Seleccion;
+
     /*
        Escenario Obligatorio TP (Sección IV - Criterios de Aceptación):
        "Un partido cuyo horario caiga en prime time simultáneamente en más de cuatro mercados candidatos,

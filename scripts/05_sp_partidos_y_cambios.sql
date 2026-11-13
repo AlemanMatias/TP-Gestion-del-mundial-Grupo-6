@@ -615,3 +615,182 @@ BEGIN
     END CATCH;
 END;
 GO
+
+-- =========================================================================
+-- PROCEDIMIENTOS AUXILIARES PARA CARGA DE PARTIDOS (SEMILLA)
+-- =========================================================================
+
+-- SP AUXILIAR: Inscribe formación y 26 convocados (o 25 si hay suspendidos)
+CREATE OR ALTER PROCEDURE partido.sp_AuxCargarPlanillaEquipo
+    @id_partido         INT,
+    @id_seleccion       INT,
+    @esquema            VARCHAR(10),
+    @dorsales_titulares VARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC partido.sp_RegistrarFormacion
+        @id_partido      = @id_partido,
+        @id_seleccion    = @id_seleccion,
+        @esquema_tactico = @esquema;
+
+    DECLARE @id_formacion INT = (
+        SELECT ID FROM partido.Formacion_Partido
+        WHERE ID_Partido = @id_partido AND ID_Seleccion = @id_seleccion
+    );
+    DECLARE @fecha_partido DATETIME = (SELECT fecha_hora_local FROM partido.Partido WHERE ID = @id_partido);
+
+    DECLARE @planilla TABLE (fila INT IDENTITY(1,1), id_jugador INT, es_titular BIT);
+
+    INSERT INTO @planilla (id_jugador, es_titular)
+    SELECT 
+        ID_Jugador,
+        CASE 
+            WHEN ROW_NUMBER() OVER (
+                ORDER BY 
+                    CASE WHEN @dorsales_titulares IS NOT NULL 
+                          AND CHARINDEX(',' + CAST(c.dorsal AS VARCHAR(10)) + ',', ',' + @dorsales_titulares + ',') > 0
+                         THEN CHARINDEX(',' + CAST(c.dorsal AS VARCHAR(10)) + ',', ',' + @dorsales_titulares + ',')
+                         ELSE 999 END,
+                    c.dorsal ASC
+            ) <= 11 THEN 1 
+            ELSE 0 
+        END
+    FROM administracion.Convocatoria c
+    WHERE c.ID_Seleccion = @id_seleccion
+      AND c.estado = 1
+      AND NOT EXISTS (
+          SELECT 1 FROM partido.Suspension su
+          JOIN partido.Partido p_orig ON p_orig.ID = su.ID_Partido
+          WHERE su.ID_Jugador = c.ID_Jugador
+            AND @fecha_partido > p_orig.fecha_hora_local
+            AND su.partidos_descontados < su.partidos_totales
+      );
+
+    DECLARE @i INT = 1, @max INT = (SELECT MAX(fila) FROM @planilla);
+    DECLARE @id_jug INT, @titular BIT;
+    WHILE @i <= @max
+    BEGIN
+        SELECT @id_jug = id_jugador, @titular = es_titular FROM @planilla WHERE fila = @i;
+        EXEC partido.sp_RegistrarAlineacion 
+            @id_formacion = @id_formacion, 
+            @id_jugador   = @id_jug, 
+            @es_titular   = @titular;
+        SET @i += 1;
+    END;
+END;
+GO
+
+-- SP AUXILIAR: Designa terna de 5 árbitros neutrales
+CREATE OR ALTER PROCEDURE arbitraje.sp_AuxDesignarArbitrosPartido
+    @id_partido           INT,
+    @id_arbitro_principal INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @pais_loc INT, @pais_vis INT;
+    SELECT @pais_loc = sl.ID_Pais, @pais_vis = sv.ID_Pais
+    FROM partido.Partido p
+    JOIN administracion.Seleccion sl ON sl.ID = p.ID_Seleccion_Local
+    JOIN administracion.Seleccion sv ON sv.ID = p.ID_Seleccion_Visitante
+    WHERE p.ID = @id_partido;
+
+    -- Determinar el número cronológico del partido en el fixture
+    DECLARE @num_partido INT;
+    SELECT @num_partido = COUNT(*) 
+    FROM partido.Partido 
+    WHERE ID <= @id_partido;
+
+    -- Apellido del árbitro principal según el fixture oficial documentado
+    DECLARE @ape_principal VARCHAR(50);
+    SET @ape_principal = CASE @num_partido
+        WHEN 1  THEN 'Marciniak'  -- MEX vs RSA
+        WHEN 2  THEN 'Collina'    -- ARG vs CAN
+        WHEN 3  THEN 'Webb'       -- AUT vs NZL
+        WHEN 4  THEN 'Rizzoli'    -- USA vs FRA
+        WHEN 5  THEN 'Vin%c'      -- BRA vs ESP (Slavko Vinčić)
+        WHEN 6  THEN 'Langenus'   -- GER vs COL
+        WHEN 7  THEN 'Gonella'    -- ENG vs URU
+        WHEN 8  THEN 'Taylor'     -- POR vs PAR
+        WHEN 9  THEN 'Puhl'       -- NED vs ECU
+        WHEN 10 THEN 'Belqola'    -- BEL vs CRO
+        WHEN 11 THEN 'Eklind'     -- SCO vs SUI
+        WHEN 12 THEN 'Capdeville' -- TUR vs PAN
+        WHEN 13 THEN 'Dienst'     -- SWE vs NOR
+        WHEN 14 THEN 'Ling'       -- ARG vs NZL
+        WHEN 15 THEN 'Rizzoli'    -- BRA vs JPN
+        WHEN 16 THEN 'Collina'    -- ARG vs AUT
+        WHEN 17 THEN 'Webb'       -- ARG vs MEX (16vos)
+        WHEN 18 THEN 'Marciniak'  -- BRA vs URU (16vos)
+        WHEN 19 THEN 'Collina'    -- ARG vs ENG (8vos)
+        WHEN 20 THEN 'Vin%c'      -- BRA vs GER (8vos)
+        WHEN 21 THEN 'Webb'       -- ARG vs NED (4tos)
+        WHEN 22 THEN 'Rizzoli'    -- BRA vs ESP (4tos)
+        WHEN 23 THEN 'Marciniak'  -- ARG vs FRA (Semis)
+        WHEN 24 THEN 'Collina'    -- BRA vs POR (Semis)
+        WHEN 25 THEN 'Vin%c'      -- FRA vs POR (3er Puesto)
+        WHEN 26 THEN 'Marciniak'  -- ARG vs BRA (Final)
+        ELSE NULL
+    END;
+
+    DECLARE @id_principal_det INT;
+    IF @ape_principal IS NOT NULL
+    BEGIN
+        SELECT TOP 1 @id_principal_det = a.ID
+        FROM arbitraje.Arbitro a
+        WHERE a.apellido LIKE @ape_principal
+          AND a.ID_Pais <> @pais_loc 
+          AND a.ID_Pais <> @pais_vis;
+    END;
+
+    -- Si no se halló por apellido, asignar el primer árbitro neutral disponible
+    IF @id_principal_det IS NULL
+    BEGIN
+        SELECT TOP 1 @id_principal_det = a.ID
+        FROM arbitraje.Arbitro a
+        WHERE a.ID_Pais <> @pais_loc 
+          AND a.ID_Pais <> @pais_vis
+        ORDER BY a.ID ASC;
+    END;
+
+    -- Armar la terna de 5 árbitros neutrales
+    DECLARE @terna TABLE (orden INT IDENTITY(1,1), id_arbitro INT);
+    
+    -- El primer árbitro es el Principal designado
+    INSERT INTO @terna (id_arbitro) VALUES (@id_principal_det);
+
+    -- Completar con 4 árbitros neutrales distintos para Asistentes, 4to y VAR
+    INSERT INTO @terna (id_arbitro)
+    SELECT TOP 4 a.ID
+    FROM arbitraje.Arbitro a
+    WHERE a.ID_Pais <> @pais_loc 
+      AND a.ID_Pais <> @pais_vis
+      AND a.ID <> @id_principal_det
+    ORDER BY ((a.ID + @id_partido * 3) % 22) ASC, a.ID ASC;
+
+    DECLARE @i INT = 1, @id_arb INT, @rol VARCHAR(30);
+    WHILE @i <= 5
+    BEGIN
+        SELECT @id_arb = id_arbitro FROM @terna WHERE orden = @i;
+        SET @rol = CASE @i
+            WHEN 1 THEN 'Árbitro Principal'
+            WHEN 2 THEN 'Árbitro Asistente 1'
+            WHEN 3 THEN 'Árbitro Asistente 2'
+            WHEN 4 THEN 'Cuarto Árbitro'
+            WHEN 5 THEN 'Árbitro VAR'
+        END;
+
+        IF @i = 1 SET @id_arbitro_principal = @id_arb;
+
+        EXEC arbitraje.sp_DesignarArbitro
+            @ID_Partido = @id_partido,
+            @ID_Arbitro = @id_arb,
+            @Rol        = @rol,
+            @Informe    = NULL;
+
+        SET @i += 1;
+    END;
+END;
+GO

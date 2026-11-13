@@ -368,18 +368,6 @@ BEGIN
     IF @codigo_error <> 0
         THROW @codigo_error, @mensaje_error, 1;
 
-    -- A partir de dieciseisavos emitir advertencia si procede de un entorno cercano o cruzado
-    DECLARE @OrdenFase SMALLINT;
-    SELECT @OrdenFase = f.orden 
-    FROM partido.Partido p
-    JOIN administracion.Fase_Torneo f ON f.ID = p.ID_Fase
-    WHERE p.ID = @ID_Partido;
-
-    IF @OrdenFase >= 2
-    BEGIN
-        PRINT 'ADVERTENCIA FIFA: El partido pertenece a una fase de eliminación directa (orden >= 2). Verifique posibles cruces futuros de confederación.';
-    END
-
     BEGIN TRANSACTION;
     BEGIN TRY
         INSERT INTO arbitraje.Designacion_Arbitral (ID_Partido, ID_Arbitro, rol, informe)
@@ -530,7 +518,7 @@ BEGIN
         IF @codigo_error = 0 SET @codigo_error = 50006;
     END
 
-    -- Validar que el destinatario pertenezca al partido antes de insertar
+    -- Validar que el destinatario pertenezca al partido y no haya sido expulsado previamente antes de insertar
     IF @ID_Jugador IS NOT NULL AND @ID_Cuerpo_Tecnico IS NULL
        AND EXISTS (SELECT 1 FROM partido.Partido WHERE ID = @ID_Partido)
     BEGIN
@@ -543,6 +531,17 @@ BEGIN
         BEGIN
             SET @mensaje_error += '(50019) El jugador sancionado no está inscripto en la alineación oficial de este partido. ';
             IF @codigo_error = 0 SET @codigo_error = 50019;
+        END
+        ELSE IF EXISTS (
+            SELECT 1
+            FROM partido.Tarjeta t
+            WHERE t.ID_Partido = @ID_Partido
+              AND t.ID_Jugador = @ID_Jugador
+              AND (t.tipo = 'ROJA' OR t.es_doble_amarilla = 1)
+        )
+        BEGIN
+            SET @mensaje_error += '(50044) El jugador ya fue expulsado previamente en este partido y no puede recibir nuevas tarjetas. ';
+            IF @codigo_error = 0 SET @codigo_error = 50044;
         END
     END
     ELSE IF @ID_Cuerpo_Tecnico IS NOT NULL AND @ID_Jugador IS NULL
@@ -559,6 +558,17 @@ BEGIN
             SET @mensaje_error += '(50007) El miembro del cuerpo técnico no existe o no pertenece a los equipos de este partido. ';
             IF @codigo_error = 0 SET @codigo_error = 50007;
         END
+        ELSE IF EXISTS (
+            SELECT 1
+            FROM partido.Tarjeta t
+            WHERE t.ID_Partido = @ID_Partido
+              AND t.ID_Miembro_Cuerpo_Tecnico = @ID_Cuerpo_Tecnico
+              AND (t.tipo = 'ROJA' OR t.es_doble_amarilla = 1)
+        )
+        BEGIN
+            SET @mensaje_error += '(50044) El miembro del cuerpo técnico ya fue expulsado previamente en este partido y no puede recibir nuevas tarjetas. ';
+            IF @codigo_error = 0 SET @codigo_error = 50044;
+        END
     END
 
     IF @codigo_error <> 0
@@ -566,26 +576,59 @@ BEGIN
 
     BEGIN TRANSACTION;
     BEGIN TRY
+        -- Detectar automáticamente si se trata de la segunda amarilla en el mismo partido
+        IF @Tipo = 'AMARILLA'
+        BEGIN
+            IF @ID_Jugador IS NOT NULL AND EXISTS (
+                SELECT 1
+                FROM partido.Tarjeta
+                WHERE ID_Partido = @ID_Partido
+                  AND ID_Jugador = @ID_Jugador
+                  AND tipo = 'AMARILLA'
+            )
+            BEGIN
+                SET @Es_Doble_Amarilla = 1;
+            END
+            ELSE IF @ID_Cuerpo_Tecnico IS NOT NULL AND EXISTS (
+                SELECT 1
+                FROM partido.Tarjeta
+                WHERE ID_Partido = @ID_Partido
+                  AND ID_Miembro_Cuerpo_Tecnico = @ID_Cuerpo_Tecnico
+                  AND tipo = 'AMARILLA'
+            )
+            BEGIN
+                SET @Es_Doble_Amarilla = 1;
+            END
+        END
+
         -- Insertar tarjeta
         INSERT INTO partido.Tarjeta (ID_Partido, ID_Jugador, ID_Miembro_Cuerpo_Tecnico, minuto, motivo, tipo, es_doble_amarilla)
         VALUES (@ID_Partido, @ID_Jugador, @ID_Cuerpo_Tecnico, @Minuto, @Motivo, @Tipo, @Es_Doble_Amarilla);
 
-        -- Si es jugador, evaluar acumulación de amarillas o roja directa
+        -- Si es jugador, evaluar acumulación de amarillas, doble amarilla o roja directa
         IF @ID_Jugador IS NOT NULL
         BEGIN
             DECLARE @TotalAmarillas INT;
             
             IF @Tipo = 'AMARILLA'
             BEGIN
-                SELECT @TotalAmarillas = COUNT(*) 
-                FROM partido.Tarjeta 
-                WHERE ID_Jugador = @ID_Jugador AND tipo = 'AMARILLA';
-
-                -- Si acumula el umbral de amarillas parametrizado (ej: 2 amarillas) o es doble amarilla, generar suspensión automática
-                IF (@TotalAmarillas > 0 AND @TotalAmarillas % @Umbral_Amarillas = 0) OR @Es_Doble_Amarilla = 1
+                IF @Es_Doble_Amarilla = 1
                 BEGIN
                     INSERT INTO partido.Suspension (ID_Jugador, ID_Partido, partidos_totales, partidos_descontados, motivo)
-                    VALUES (@ID_Jugador, @ID_Partido, @Partidos_Suspension, 0, 'Suspensión automática por acumulación de tarjetas amarillas o doble amarilla.');
+                    VALUES (@ID_Jugador, @ID_Partido, @Partidos_Suspension, 0, 'Suspensión automática por expulsión por doble tarjeta amarilla.');
+                END
+                ELSE
+                BEGIN
+                    SELECT @TotalAmarillas = COUNT(*) 
+                    FROM partido.Tarjeta 
+                    WHERE ID_Jugador = @ID_Jugador AND tipo = 'AMARILLA' AND es_doble_amarilla = 0;
+
+                    -- Si acumula el umbral de amarillas parametrizado (ej: 2 amarillas simples en el torneo), generar suspensión automática
+                    IF @TotalAmarillas > 0 AND @TotalAmarillas % @Umbral_Amarillas = 0
+                    BEGIN
+                        INSERT INTO partido.Suspension (ID_Jugador, ID_Partido, partidos_totales, partidos_descontados, motivo)
+                        VALUES (@ID_Jugador, @ID_Partido, @Partidos_Suspension, 0, 'Suspensión automática por acumulación de tarjetas amarillas en el torneo.');
+                    END
                 END
             END
             ELSE IF @Tipo = 'ROJA'
