@@ -114,7 +114,7 @@ Cada uno de los 4 archivos de Stored Procedures cuenta con su correspondiente sc
 
 ## 👥 Integrantes del Grupo
 
-* **Aleman Flores, Matias Osvaldo**
-* **Gamarra Bravo, Sidney Maribel**
-* **Pereira, Carlos Manuel**
-* **Villa, Brenda**
+* **Aleman Flores, Matias Osvaldo** — GitHub: [@AlemanMatias](https://github.com/AlemanMatias)
+* **Gamarra Bravo, Sidney Maribel** — GitHub: [@Sidney-Gamarra](https://github.com/Sidney-Gamarra)
+* **Pereira, Carlos Manuel** — GitHub: [@Manueelpereira02](https://github.com/Manueelpereira02)
+* **Villa, Brenda** — GitHub: [@BrendaDelVilla](https://github.com/BrendaDelVilla)
