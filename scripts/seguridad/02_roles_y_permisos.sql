@@ -22,11 +22,13 @@
      principio de menor privilegio (Least Privilege) dentro de Mundial2026, todo
      encapsulado en el Stored Procedure administracion.sp_ConfigurarRolesYPermisos:
      
-     1. Creación de 3 Roles de Seguridad en Mundial2026:
+     1. Creación de 5 Roles de Seguridad en Mundial2026:
         - rol_administrador      : Dirección General / DBA FIFA (Acceso total y desencriptado).
-        - rol_operador_partido   : Oficial de mesa y eventos en cancha (partido y arbitraje).
+        - rol_operador_partido   : Oficial de mesa y eventos en cancha (partido y designaciones).
         - rol_gestor_publicidad  : Gestión comercial, pautas y sponsors (publicidad).
-     2. Creación de 3 Logins a nivel servidory sus 3 Usuarios
+        - rol_comite_arbitral    : Comité arbitral y disciplinario (árbitros, informes y suspensiones).
+        - rol_medico             : Cuerpo Médico  (bajas médicas, reemplazos por lesión y fichas sensibles).
+     2. Creación de 5 Logins a nivel servidor y sus 5 Usuarios
         de Base de Datos vinculados (CREATE USER ... FOR LOGIN).
      3. Bloqueo estricto (DENY SELECT, INSERT, UPDATE, DELETE) sobre las tablas físicas
         para los roles operativos, exigiendo que toda operación pase por Stored Procedures.
@@ -62,6 +64,12 @@ BEGIN
     IF DATABASE_PRINCIPAL_ID(N'rol_gestor_publicidad') IS NULL
         CREATE ROLE [rol_gestor_publicidad] AUTHORIZATION [dbo];
 
+    IF DATABASE_PRINCIPAL_ID(N'rol_comite_arbitral') IS NULL
+        CREATE ROLE [rol_comite_arbitral] AUTHORIZATION [dbo];
+
+    IF DATABASE_PRINCIPAL_ID(N'rol_medico') IS NULL
+        CREATE ROLE [rol_medico] AUTHORIZATION [dbo];
+
     -- ------------------------------------------------------------------------
     -- 2. CREACIÓN DE LOGINS Y USUARIOS DE BASE DE DATOS
     -- ------------------------------------------------------------------------
@@ -73,6 +81,12 @@ BEGIN
 
     IF SUSER_ID(N'usr_gestor_publicidad') IS NULL
         CREATE LOGIN [usr_gestor_publicidad] WITH PASSWORD = N'Mundial2026!Publi';
+
+    IF SUSER_ID(N'usr_comite_arbitral') IS NULL
+        CREATE LOGIN [usr_comite_arbitral] WITH PASSWORD = N'Mundial2026!Comite';
+
+    IF SUSER_ID(N'usr_medico') IS NULL
+        CREATE LOGIN [usr_medico] WITH PASSWORD = N'Mundial2026!Medico';
 
     -- Si existían previamente como WITHOUT LOGIN o con otro SID, se recrean vinculados al LOGIN
     IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'usr_administrador' AND sid <> SUSER_SID(N'usr_administrador'))
@@ -90,6 +104,16 @@ BEGIN
     IF DATABASE_PRINCIPAL_ID(N'usr_gestor_publicidad') IS NULL
         CREATE USER [usr_gestor_publicidad] FOR LOGIN [usr_gestor_publicidad];
 
+    IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'usr_comite_arbitral' AND sid <> SUSER_SID(N'usr_comite_arbitral'))
+        DROP USER [usr_comite_arbitral];
+    IF DATABASE_PRINCIPAL_ID(N'usr_comite_arbitral') IS NULL
+        CREATE USER [usr_comite_arbitral] FOR LOGIN [usr_comite_arbitral];
+
+    IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'usr_medico' AND sid <> SUSER_SID(N'usr_medico'))
+        DROP USER [usr_medico];
+    IF DATABASE_PRINCIPAL_ID(N'usr_medico') IS NULL
+        CREATE USER [usr_medico] FOR LOGIN [usr_medico];
+
     -- ------------------------------------------------------------------------
     -- 3. VINCULACIÓN DE USUARIOS A SUS RESPECTIVOS ROLES
     -- ------------------------------------------------------------------------
@@ -102,15 +126,21 @@ BEGIN
     IF IS_ROLEMEMBER(N'rol_gestor_publicidad', N'usr_gestor_publicidad') = 0
         ALTER ROLE [rol_gestor_publicidad] ADD MEMBER [usr_gestor_publicidad];
 
+    IF IS_ROLEMEMBER(N'rol_comite_arbitral', N'usr_comite_arbitral') = 0
+        ALTER ROLE [rol_comite_arbitral] ADD MEMBER [usr_comite_arbitral];
+
+    IF IS_ROLEMEMBER(N'rol_medico', N'usr_medico') = 0
+        ALTER ROLE [rol_medico] ADD MEMBER [usr_medico];
+
     -- ------------------------------------------------------------------------
     -- 4. BLOQUEO ESTRICTO DE ACCESO DIRECTO A TABLAS FÍSICAS 
     -- Ningún rol no administrador puede ejecutar SELECT, INSERT, UPDATE o DELETE
     -- directamente sobre las tablas. Toda operación se canaliza por SPs
     -- ------------------------------------------------------------------------
-    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[administracion] TO [rol_operador_partido], [rol_gestor_publicidad];
-    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[partido]        TO [rol_operador_partido], [rol_gestor_publicidad];
-    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[arbitraje]      TO [rol_operador_partido], [rol_gestor_publicidad];
-    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[publicidad]     TO [rol_operador_partido], [rol_gestor_publicidad];
+    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[administracion] TO [rol_operador_partido], [rol_gestor_publicidad], [rol_comite_arbitral], [rol_medico];
+    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[partido]        TO [rol_operador_partido], [rol_gestor_publicidad], [rol_comite_arbitral], [rol_medico];
+    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[arbitraje]      TO [rol_operador_partido], [rol_gestor_publicidad], [rol_comite_arbitral], [rol_medico];
+    DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[publicidad]     TO [rol_operador_partido], [rol_gestor_publicidad], [rol_comite_arbitral], [rol_medico];
 
     -- ------------------------------------------------------------------------
     -- 5. PERMISOS DEL ROL 1: rol_administrador
@@ -171,17 +201,75 @@ BEGIN
         DENY EXECUTE ON OBJECT::[administracion].[sp_ConsultarBajasMedicasSensibles] TO [rol_gestor_publicidad];
 
     -- ------------------------------------------------------------------------
-    -- 8. PERMISOS CRIPTOGRÁFICOS SOBRE CERTIFICADO Y CLAVE SIMÉTRICA AES-256
+    -- 8. PERMISOS DEL ROL 4: rol_comite_arbitral (Comité Arbitral y Disciplinario)
+    -- Administra árbitros, idiomas, designaciones e informes arbitrales (incluido
+    -- el SP visor de informes descifrados) y gestiona suspensiones en partido.
+    -- Tiene denegados administracion, publicidad y datos sensibles de jugadores.
+    -- ------------------------------------------------------------------------
+    GRANT EXECUTE ON SCHEMA::[arbitraje] TO [rol_comite_arbitral];
+
+    IF OBJECT_ID('partido.sp_ModificarSuspension', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[partido].[sp_ModificarSuspension] TO [rol_comite_arbitral];
+
+    IF OBJECT_ID('partido.sp_EliminarSuspension', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[partido].[sp_EliminarSuspension] TO [rol_comite_arbitral];
+
+    IF OBJECT_ID('partido.sp_RegistrarCumplimientoSuspension', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[partido].[sp_RegistrarCumplimientoSuspension] TO [rol_comite_arbitral];
+
+    IF OBJECT_ID('partido.sp_ReporteTarjetasYSuspensiones', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[partido].[sp_ReporteTarjetasYSuspensiones] TO [rol_comite_arbitral];
+
+    DENY EXECUTE ON SCHEMA::[administracion] TO [rol_comite_arbitral];
+    DENY EXECUTE ON SCHEMA::[publicidad]     TO [rol_comite_arbitral];
+
+    IF OBJECT_ID('administracion.sp_ConsultarJugadorSensible', 'P') IS NOT NULL
+        DENY EXECUTE ON OBJECT::[administracion].[sp_ConsultarJugadorSensible] TO [rol_comite_arbitral];
+
+    IF OBJECT_ID('administracion.sp_ConsultarBajasMedicasSensibles', 'P') IS NOT NULL
+        DENY EXECUTE ON OBJECT::[administracion].[sp_ConsultarBajasMedicasSensibles] TO [rol_comite_arbitral];
+
+    -- ------------------------------------------------------------------------
+    -- 9. PERMISOS DEL ROL 5: rol_medico (Cuerpo Médico FIFA)
+    -- Registra bajas médicas y reemplazos por lesión (cifrando el motivo) y
+    -- consulta fichas de jugadores y bajas médicas descifradas.
+    -- Tiene denegados partido, arbitraje, publicidad y el resto de administracion.
+    -- ------------------------------------------------------------------------
+    IF OBJECT_ID('administracion.sp_RegistrarBajaConvocatoria', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[administracion].[sp_RegistrarBajaConvocatoria] TO [rol_medico];
+
+    IF OBJECT_ID('administracion.sp_ReemplazarConvocadoUltimoMomento', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[administracion].[sp_ReemplazarConvocadoUltimoMomento] TO [rol_medico];
+
+    IF OBJECT_ID('administracion.sp_ConsultarBajasMedicasSensibles', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[administracion].[sp_ConsultarBajasMedicasSensibles] TO [rol_medico];
+
+    IF OBJECT_ID('administracion.sp_ConsultarJugadorSensible', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[administracion].[sp_ConsultarJugadorSensible] TO [rol_medico];
+
+    IF OBJECT_ID('administracion.sp_ReporteSeleccionesPlantillas', 'P') IS NOT NULL
+        GRANT EXECUTE ON OBJECT::[administracion].[sp_ReporteSeleccionesPlantillas] TO [rol_medico];
+
+    DENY EXECUTE ON SCHEMA::[partido]    TO [rol_medico];
+    DENY EXECUTE ON SCHEMA::[arbitraje]  TO [rol_medico];
+    DENY EXECUTE ON SCHEMA::[publicidad] TO [rol_medico];
+
+    IF OBJECT_ID('arbitraje.sp_ConsultarInformesArbitrales', 'P') IS NOT NULL
+        DENY EXECUTE ON OBJECT::[arbitraje].[sp_ConsultarInformesArbitrales] TO [rol_medico];
+
+    -- ------------------------------------------------------------------------
+    -- 10. PERMISOS CRIPTOGRÁFICOS SOBRE CERTIFICADO Y CLAVE SIMÉTRICA AES-256
     -- rol_administrador recibe CONTROL completo para cifrar y descifrar.
-    -- rol_operador_partido recibe solo lo necesario para cifrar en sp_DesignarArbitro,
-    -- denegando ALTER y TAKE OWNERSHIP sobre el certificado para que no pueda
-    -- alterarlo ni apropiarse de su clave privada.
+    -- rol_operador_partido, rol_comite_arbitral y rol_medico reciben solo lo
+    -- necesario para cifrar/descifrar en sus SPs autorizados, denegando ALTER y
+    -- TAKE OWNERSHIP sobre el certificado.
+    -- rol_gestor_publicidad tiene denegado REFERENCES.
     -- ------------------------------------------------------------------------
     IF KEY_ID(N'Key_Mundial2026_AES256') IS NOT NULL AND CERT_ID(N'Cert_Mundial2026_Seguridad') IS NOT NULL
     BEGIN
-        GRANT CONTROL    ON CERTIFICATE::[Cert_Mundial2026_Seguridad] TO [rol_administrador], [rol_operador_partido];
-        DENY  ALTER, TAKE OWNERSHIP ON CERTIFICATE::[Cert_Mundial2026_Seguridad] TO [rol_operador_partido];
-        GRANT REFERENCES ON SYMMETRIC KEY::[Key_Mundial2026_AES256]   TO [rol_administrador], [rol_operador_partido];
+        GRANT CONTROL    ON CERTIFICATE::[Cert_Mundial2026_Seguridad] TO [rol_administrador], [rol_operador_partido], [rol_comite_arbitral], [rol_medico];
+        DENY  ALTER, TAKE OWNERSHIP ON CERTIFICATE::[Cert_Mundial2026_Seguridad] TO [rol_operador_partido], [rol_comite_arbitral], [rol_medico];
+        GRANT REFERENCES ON SYMMETRIC KEY::[Key_Mundial2026_AES256]   TO [rol_administrador], [rol_operador_partido], [rol_comite_arbitral], [rol_medico];
         DENY  REFERENCES ON SYMMETRIC KEY::[Key_Mundial2026_AES256]   TO [rol_gestor_publicidad];
     END;
 END;
@@ -206,7 +294,7 @@ JOIN sys.database_principals AS roles
     ON database_role_members.role_principal_id = roles.principal_id
 JOIN sys.database_principals AS members
     ON database_role_members.member_principal_id = members.principal_id
-WHERE roles.name IN ('rol_administrador', 'rol_operador_partido', 'rol_gestor_publicidad')
+WHERE roles.name IN ('rol_administrador', 'rol_operador_partido', 'rol_gestor_publicidad', 'rol_comite_arbitral', 'rol_medico')
 ORDER BY roles.name, members.name;
 GO
 
@@ -233,12 +321,12 @@ LEFT JOIN sys.certificates AS cert
     ON perms.class_desc = 'CERTIFICATE' AND perms.major_id = cert.certificate_id
 LEFT JOIN sys.symmetric_keys AS sk
     ON perms.class_desc = 'SYMMETRIC_KEYS' AND perms.major_id = sk.symmetric_key_id
-WHERE dp.name IN ('rol_administrador', 'rol_operador_partido', 'rol_gestor_publicidad')
+WHERE dp.name IN ('rol_administrador', 'rol_operador_partido', 'rol_gestor_publicidad', 'rol_comite_arbitral', 'rol_medico')
 ORDER BY dp.name, perms.state_desc, perms.class_desc, [Sobre_Objeto_o_Esquema];
 GO
 
 PRINT '======================================================================';
 PRINT '¡CONFIGURACIÓN DE ROLES Y PERMISOS COMPLETADA CON ÉXITO EN Mundial2026!';
-PRINT 'Roles activos: rol_administrador, rol_operador_partido, rol_gestor_publicidad.';
+PRINT 'Roles activos: rol_administrador, rol_operador_partido, rol_gestor_publicidad, rol_comite_arbitral, rol_medico.';
 PRINT '======================================================================';
 GO

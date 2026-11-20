@@ -26,7 +26,16 @@
         - arbitraje.Designacion_Arbitral.informe -> informe_cifrado
      5. Actualización de todos los Stored Procedures afectados para encapsular
         el cifrado automático sin romper compatibilidad ni acumulación de errores.
-     6. Procedimientos almacenados de consulta segura para el rol de administrador.
+     6. Procedimientos almacenados de consulta segura para datos sensibles descifrados.
+     
+   Aclaración sobre tests de entregas anteriores:
+     - test_04_administracion.sql, test_05_partidos_y_cambios.sql y
+       test_07_publicidad.sql pasan sin modificaciones luego de aplicar el cifrado.
+     - test_06_sp_Gol_Tarjeta_Arbitro_Suspencion.sql: si se ejecuta después de
+       este script, falla únicamente el caso 17 (línea 287, sp_ModificarDesignacionArbitro),
+       ya que valida en texto plano `informe = 'Informe final aprobado por comité.'`
+       y dicha columna queda intencionalmente en NULL al guardarse cifrada en
+       `informe_cifrado`.
 */
 
 USE Mundial2026;

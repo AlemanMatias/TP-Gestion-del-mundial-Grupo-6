@@ -25,8 +25,6 @@
                 4. NO PUEDE (Error 229) ejecutar ninguno de los 3 SPs visores de datos sensibles.
                 5. NO PUEDE (Error 229) hacer SELECT, INSERT, UPDATE o DELETE directo sobre tablas físicas.
                    
-   PRERREQUISITO: Haber ejecutado 01_cifrado_datos_sensibles.sql y 02_roles_y_permisos.sql.
-   RESULTADO ESPERADO: Las 8 pruebas del reporte consolidado deben finalizar con Estado = 'OK'.
 */
 
 USE Mundial2026;

@@ -27,9 +27,6 @@
                 6. NO PUEDE (Error 229) ejecutar administracion.sp_ConsultarJugadorSensible.
                 7. NO PUEDE (Error 229) ejecutar administracion.sp_ConsultarBajasMedicasSensibles.
                 8. NO PUEDE (Error 229) ejecutar SPs de publicidad ni hacer INSERT directo en tablas.
-                   
-   PRERREQUISITO: Haber ejecutado 01_cifrado_datos_sensibles.sql y 02_roles_y_permisos.sql.
-   RESULTADO ESPERADO: Las 9 pruebas del reporte consolidado deben finalizar con Estado = 'OK'.
 */
 
 USE Mundial2026;
