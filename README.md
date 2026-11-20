@@ -38,6 +38,8 @@ Este proyecto implementa un sistema integral de base de datos relacional para la
 │   │   ├── README.md                       # Especificación del modelo relacional
 │   │   ├── der_v1.2.jpg                    # Diagrama Entidad-Relación actualizado (v1.2)
 │   │   └── der_v1.2_dbdiagram.txt          # Código fuente DBML para dbdiagram.io
+│   ├── Com5600_Grupo06_Politica_Respaldo.pdf # Política de respaldo (RPO, RTO, FULL, 3-2-1)
+│   ├── Informe Cifrado de Datos Sensibles.pdf # Documentación de cifrado AES-256
 │   ├── Informe integracion APIs Externas.pdf # Documentación de consumo de APIs
 │   ├── Informe Web Scraping.pdf            # Documentación técnica de extracción en Python
 │   └── Instalación_y_Configuración.pdf     # Parámetros del motor e infraestructura
@@ -48,11 +50,13 @@ Este proyecto implementa un sistema integral de base de datos relacional para la
 │   ├── 04..07: Stored Procedures de negocio y lógica operativa (ABMs)
 │   ├── 08..12: Stored Procedures de importación masiva (JSON, CSV, APIs REST)
 │   ├── reportes/                           # Stored Procedures para reportes analíticos
+│   ├── seguridad/                          # Cifrado AES-256, roles, logins, permisos y README.md
 │   ├── semilla/                            # Scripts de carga y simulación del torneo
 │   ├── RECREAR_BASE.sql                    # Script para recrear la base y compilar todos los SPs
 │   ├── JUEGO_DE_DATOS.sql                  # Script para poblar la base y disputar los partidos
 │   └── REPORTES.sql                        # Script para ejecución individual de reportes analíticos
 ├── tests/
+│   ├── seguridad/                          # Tests de cifrado y validación por cada rol (EXECUTE AS LOGIN)
 │   └── Scripts de testing para cada módulo
 ├── .gitignore
 └── README.md
@@ -86,6 +90,10 @@ Este proyecto implementa un sistema integral de base de datos relacional para la
    * Fases Eliminatorias, definiciones por penales y Gran Final - Partidos 17 al 26 (`04_partidos_fase_final.sql`).
 
 
+### Paso 3: Seguridad, Cifrado y Respaldo (`scripts/seguridad/`)
+Luego de crear y poblar la base, ejecutar manualmente en orden en SSMS (con una sesión `sysadmin` / Autenticación de Windows):
+1. **`scripts/seguridad/01_cifrado_datos_sensibles.sql`**: crea la *Database Master Key*, el certificado `Cert_Mundial2026_Seguridad` y la clave simétrica `Key_Mundial2026_AES256` (`AES_256`). Cifra en columnas `VARBINARY` las fechas de nacimiento (`Jugador.fecha_nacimiento_cifrada`), motivos de baja médica (`Convocatoria.motivo_cifrado`) e informes arbitrales (`Designacion_Arbitral.informe_cifrado`), dejando los campos planos en `NULL`, reescribe los SPs de escritura y agrega 3 SPs visores para lectura descifrada.
+2. **`scripts/seguridad/02_roles_y_permisos.sql`**: ejecuta `administracion.sp_ConfigurarRolesYPermisos` para crear 5 roles (`rol_administrador`, `rol_operador_partido`, `rol_gestor_publicidad`, `rol_comite_arbitral` y `rol_medico`), sus 5 logins y usuarios vinculados. El detalle completo de permisos y denegaciones está en [`scripts/seguridad/README.md`](scripts/seguridad/README.md).
 ---
 ## 📥 Importación de datos
 
@@ -103,7 +111,7 @@ El sistema integra fuentes de datos heterogéneas para alimentar el catálogo in
 
 ## 🧪 Testing
 
-Cada uno de los 4 archivos de Stored Procedures cuenta con su correspondiente script de pruebas.
+Cada uno de los 4 archivos de Stored Procedures cuenta con su correspondiente script de pruebas, y el módulo de seguridad incorpora en `tests/seguridad/` el test de cifrado (`test_01_cifrado_datos_sensibles.sql`) y un script de prueba por cada rol (`test_rol_administrador.sql`, `test_rol_operador_partido.sql`, `test_rol_gestor_publicidad.sql`, `test_rol_comite_arbitral.sql`, `test_rol_medico.sql`).
 
 
 > * Cada script de prueba construye su propio contexto de datos invocando exclusivamente los Stored Procedures del sistema.
